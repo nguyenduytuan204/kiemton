@@ -1065,27 +1065,28 @@ async function ensureModel(){
    NOTE ON SCOPE: Improved detection with color-based + edge detection
    for better bottle counting. Falls back to COCO-SSD if needed. */
 
-// Advanced bottle detection: returns array of detected bottles with bounding boxes
+// Simplified bottle detection: detect dark reddish-brown glass (bottle body)
 function detectBottlesAdvanced(imageData, minBottleSize=30){
   const data = imageData.data;
   const w = imageData.width, h = imageData.height;
   
-  // Simple approach: detect bright objects (cork/caps) which are clearly visible
-  const capMask = new Uint8ClampedArray(w*h);
+  // Create mask for bottle-colored pixels (dark reddish-brown)
+  const bottleMask = new Uint8ClampedArray(w*h);
   
   for(let i=0; i<w*h; i++){
     const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
     const brightness = (r+g+b)/3;
     
-    // Cork/cap is relatively bright and tan/beige
-    // Broader criteria: brightness > 110 and more red/green than blue
-    if(brightness > 110 && brightness < 245){
-      const isLight = (r+g) > (b+40); // More warm tones
-      capMask[i] = isLight ? 255 : 0;
-    }
+    // Bottle glass is dark red-brown: low brightness, R > G > B
+    // Be generous with range: brightness 20-180
+    const isDarkGlass = brightness >= 20 && brightness <= 180 && 
+                        r > g && r > b && 
+                        (r - b) >= 15; // Red channel significantly higher than blue
+    
+    bottleMask[i] = isDarkGlass ? 255 : 0;
   }
   
-  // Dilate to connect nearby pixels
+  // Dilate to fill small holes and connect nearby pixels
   function dilate(mask, iterations=1){
     const result = new Uint8ClampedArray(mask);
     for(let it=0; it<iterations; it++){
@@ -1108,7 +1109,33 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
     return result;
   }
   
-  const dilatedCaps = dilate(capMask, 2);
+  // Also erode slightly to remove noise
+  function erode(mask, iterations=1){
+    const result = new Uint8ClampedArray(mask);
+    for(let it=0; it<iterations; it++){
+      for(let y=1; y<h-1; y++){
+        for(let x=1; x<w-1; x++){
+          const idx = y*w+x;
+          if(result[idx]>0){
+            let allNeighbors = true;
+            for(let dy=-1; dy<=1; dy++){
+              for(let dx=-1; dx<=1; dx++){
+                if(result[idx + dy*w + dx]===0){
+                  allNeighbors=false;
+                  dy=2; dx=2;
+                }
+              }
+            }
+            if(!allNeighbors) result[idx]=0;
+          }
+        }
+      }
+    }
+    return result;
+  }
+  
+  let processed = dilate(bottleMask, 3);
+  processed = erode(processed, 1);
   
   // Connected component labeling
   const labels = new Int32Array(w*h);
@@ -1122,7 +1149,7 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
     
     while(stack.length){
       const idx = stack.pop();
-      if(idx<0 || idx>=w*h || labels[idx]!==0 || dilatedCaps[idx]===0) continue;
+      if(idx<0 || idx>=w*h || labels[idx]!==0 || processed[idx]===0) continue;
       
       labels[idx] = nextLabel;
       size++;
@@ -1144,23 +1171,22 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
   
   // Find all components
   for(let i=0; i<w*h; i++){
-    if(dilatedCaps[i]>0 && labels[i]===0){
+    if(processed[i]>0 && labels[i]===0){
       const {size, bounds} = floodFill(i);
       
-      // Much looser filter: just check if size is reasonable for a cap
-      // Caps are typically 50-2000 pixels depending on distance
+      // Accept if size is reasonable (at least minBottleSize pixels)
       if(size >= minBottleSize){
         const width = bounds.maxX - bounds.minX + 1;
         const height = bounds.maxY - bounds.minY + 1;
-        const aspect = Math.max(width, height) / Math.max(Math.min(width, height), 1);
         
-        // Accept if not too elongated (not just a line)
-        if(aspect < 4){
+        // Bottles should be taller than wide (or at least similar)
+        // Accept aspect ratios between 0.6 and 3 (not too thin, not too wide)
+        const aspect = height / Math.max(width, 1);
+        if(aspect >= 0.5 && aspect <= 4){
           bottles.push({
             bounds,
             centerX: (bounds.minX + bounds.maxX) / 2,
             centerY: (bounds.minY + bounds.maxY) / 2,
-            size,
             width,
             height
           });
@@ -1170,32 +1196,7 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
     }
   }
   
-  // Merge overlapping detections (some caps might be split)
-  const merged = [];
-  for(const bottle of bottles){
-    let found = false;
-    for(const m of merged){
-      const dx = bottle.centerX - m.centerX;
-      const dy = bottle.centerY - m.centerY;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      
-      // If centers are close, merge them
-      if(dist < Math.max(bottle.width, bottle.height)){
-        m.bounds.minX = Math.min(m.bounds.minX, bottle.bounds.minX);
-        m.bounds.maxX = Math.max(m.bounds.maxX, bottle.bounds.maxX);
-        m.bounds.minY = Math.min(m.bounds.minY, bottle.bounds.minY);
-        m.bounds.maxY = Math.max(m.bounds.maxY, bottle.bounds.maxY);
-        m.centerX = (m.bounds.minX + m.bounds.maxX) / 2;
-        m.centerY = (m.bounds.minY + m.bounds.maxY) / 2;
-        m.size += bottle.size;
-        found = true;
-        break;
-      }
-    }
-    if(!found) merged.push(bottle);
-  }
-  
-  return merged;
+  return bottles;
 }
 
 // Draw detected bottles on canvas with bounding boxes
@@ -1246,7 +1247,7 @@ function startDetectLoop(){
         if(useAdvanced){
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const bottles = detectBottlesAdvanced(imgData, 80);
+          const bottles = detectBottlesAdvanced(imgData, 50);
           const bottleCount = bottles.length;
           
           if(bottleCount > 0){
@@ -1305,7 +1306,7 @@ document.getElementById('capturePhotoBtn').addEventListener('click', async ()=>{
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     
     // Detect bottles
-    const bottles = detectBottlesAdvanced(imgData, 100);
+    const bottles = detectBottlesAdvanced(imgData, 50);
     const bottleCount = bottles.length;
     
     STATE.scanCount = bottleCount;
@@ -1360,7 +1361,7 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
     status.textContent = 'Đang phân tích ảnh…';
     try{
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const bottles = detectBottlesAdvanced(imgData, 100);
+      const bottles = detectBottlesAdvanced(imgData, 50);
       const bottleCount = bottles.length;
       
       // Redraw with boxes
