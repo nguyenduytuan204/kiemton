@@ -1066,38 +1066,23 @@ async function ensureModel(){
    for better bottle counting. Falls back to COCO-SSD if needed. */
 
 // Advanced bottle detection: returns array of detected bottles with bounding boxes
-function detectBottlesAdvanced(imageData, minBottleSize=50){
+function detectBottlesAdvanced(imageData, minBottleSize=30){
   const data = imageData.data;
   const w = imageData.width, h = imageData.height;
   
-  // Edge detection for better shape detection
-  const edges = new Uint8ClampedArray(w*h);
-  for(let y=1; y<h-1; y++){
-    for(let x=1; x<w-1; x++){
-      const idx = y*w+x;
-      const c=idx, l=idx-1, r=idx+1, t=idx-w, b=idx+w;
-      
-      // Sobel edge detection
-      const gx = Math.abs(data[r*4]-data[l*4]) + Math.abs(data[b*4]-data[t*4]);
-      const gy = Math.abs(data[b*4]-data[c*4]) + Math.abs(data[r*4]-data[c*4]);
-      edges[idx] = Math.sqrt(gx*gx + gy*gy) > 60 ? 255 : 0;
-    }
-  }
-  
-  // Strategy 1: Detect BOTTLE CAPS (cork/plastic tops - relatively bright, round)
+  // Simple approach: detect bright objects (cork/caps) which are clearly visible
   const capMask = new Uint8ClampedArray(w*h);
   
   for(let i=0; i<w*h; i++){
     const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
     const brightness = (r+g+b)/3;
-    const saturation = Math.max(r,g,b) - Math.min(r,g,b);
     
-    // CORK/CAP detection: light tan/beige/white colors
-    // Cork is typically: brightness 140-240, low saturation, reddish-yellow tone
-    const isCork = brightness > 120 && brightness < 240 && 
-                   saturation < 80 && 
-                   r >= Math.max(g, b) - 20;
-    capMask[i] = isCork ? 255 : 0;
+    // Cork/cap is relatively bright and tan/beige
+    // Broader criteria: brightness > 110 and more red/green than blue
+    if(brightness > 110 && brightness < 245){
+      const isLight = (r+g) > (b+40); // More warm tones
+      capMask[i] = isLight ? 255 : 0;
+    }
   }
   
   // Dilate to connect nearby pixels
@@ -1112,7 +1097,7 @@ function detectBottlesAdvanced(imageData, minBottleSize=50){
               for(let dx=-1; dx<=1; dx++){
                 if(result[idx + dy*w + dx]>0){
                   result[idx]=255;
-                  dy=2; dx=2; // break both loops
+                  dy=2; dx=2;
                 }
               }
             }
@@ -1125,87 +1110,92 @@ function detectBottlesAdvanced(imageData, minBottleSize=50){
   
   const dilatedCaps = dilate(capMask, 2);
   
-  // Connected component labeling to count distinct bottles
+  // Connected component labeling
   const labels = new Int32Array(w*h);
-  const bottles = []; // Array of detected bottles with bounds
+  const bottles = [];
   let nextLabel = 1;
   
   function floodFill(startIdx){
     const stack = [startIdx];
-    let size = 0;
     const bounds = { minX: w, maxX: 0, minY: h, maxY: 0 };
-    const pixels = [];
+    let size = 0;
     
     while(stack.length){
       const idx = stack.pop();
       if(idx<0 || idx>=w*h || labels[idx]!==0 || dilatedCaps[idx]===0) continue;
+      
       labels[idx] = nextLabel;
       size++;
-      pixels.push(idx);
       const x = idx%w, y = Math.floor(idx/w);
+      
       bounds.minX = Math.min(bounds.minX, x);
       bounds.maxX = Math.max(bounds.maxX, x);
       bounds.minY = Math.min(bounds.minY, y);
       bounds.maxY = Math.max(bounds.maxY, y);
+      
       if(x>0) stack.push(idx-1);
       if(x<w-1) stack.push(idx+1);
       if(y>0) stack.push(idx-w);
       if(y<h-1) stack.push(idx+w);
     }
     
-    const width = bounds.maxX - bounds.minX + 1;
-    const height = bounds.maxY - bounds.minY + 1;
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    
-    return { size, width, height, bounds, centerX, centerY, pixels };
+    return { size, bounds };
   }
   
-  // First pass: find all bright caps
+  // Find all components
   for(let i=0; i<w*h; i++){
     if(dilatedCaps[i]>0 && labels[i]===0){
-      const info = floodFill(i);
+      const {size, bounds} = floodFill(i);
       
-      // Filter by size: bottle caps are typically 20-200 pixels
-      if(info.size >= minBottleSize && info.size < 5000){
-        // Check if it looks like a cap (not too elongated)
-        const aspectRatio = info.height / Math.max(info.width, 1);
-        if(aspectRatio > 0.4 && aspectRatio < 2.5){
-          bottles.push(info);
+      // Much looser filter: just check if size is reasonable for a cap
+      // Caps are typically 50-2000 pixels depending on distance
+      if(size >= minBottleSize){
+        const width = bounds.maxX - bounds.minX + 1;
+        const height = bounds.maxY - bounds.minY + 1;
+        const aspect = Math.max(width, height) / Math.max(Math.min(width, height), 1);
+        
+        // Accept if not too elongated (not just a line)
+        if(aspect < 4){
+          bottles.push({
+            bounds,
+            centerX: (bounds.minX + bounds.maxX) / 2,
+            centerY: (bounds.minY + bounds.maxY) / 2,
+            size,
+            width,
+            height
+          });
         }
       }
       nextLabel++;
     }
   }
   
-  // Second pass: look for dark bottle bodies below caps
-  const bottleObjects = [];
-  for(const cap of bottles){
-    // Search below the cap for the bottle body
-    const searchY = cap.bounds.maxY + 5;
-    const searchXmin = Math.max(0, cap.bounds.minX - 20);
-    const searchXmax = Math.min(w-1, cap.bounds.maxX + 20);
-    
-    let foundBody = false;
-    for(let y=searchY; y<Math.min(h, searchY+100); y++){
-      for(let x=searchXmin; x<=searchXmax; x++){
-        const idx = y*w + x;
-        const r=data[idx*4], g=data[idx*4+1], b=data[idx*4+2];
-        const brightness = (r+g+b)/3;
-        // Dark bottle glass
-        if(brightness < 140 && brightness > 20 && r > g && r > b){
-          foundBody = true;
-          cap.bounds.maxY = y; // Extend bounds downward to include body
-          break;
-        }
+  // Merge overlapping detections (some caps might be split)
+  const merged = [];
+  for(const bottle of bottles){
+    let found = false;
+    for(const m of merged){
+      const dx = bottle.centerX - m.centerX;
+      const dy = bottle.centerY - m.centerY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      
+      // If centers are close, merge them
+      if(dist < Math.max(bottle.width, bottle.height)){
+        m.bounds.minX = Math.min(m.bounds.minX, bottle.bounds.minX);
+        m.bounds.maxX = Math.max(m.bounds.maxX, bottle.bounds.maxX);
+        m.bounds.minY = Math.min(m.bounds.minY, bottle.bounds.minY);
+        m.bounds.maxY = Math.max(m.bounds.maxY, bottle.bounds.maxY);
+        m.centerX = (m.bounds.minX + m.bounds.maxX) / 2;
+        m.centerY = (m.bounds.minY + m.bounds.maxY) / 2;
+        m.size += bottle.size;
+        found = true;
+        break;
       }
-      if(foundBody) break;
     }
-    
-    bottleObjects.push(cap);
+    if(!found) merged.push(bottle);
   }
   
-  return bottleObjects;
+  return merged;
 }
 
 // Draw detected bottles on canvas with bounding boxes
