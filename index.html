@@ -555,9 +555,9 @@ html.dark .btn-primary{background:var(--brass);color:#2a1d09;}
     <div class="sheet-handle"></div>
     <div class="sheet-title"><h3>Quét hàng bằng camera / ảnh</h3><button class="icon-btn" data-close="scanOverlay">✕</button></div>
 
-    <div id="scanProductPicker"></div>
+    <div id="scanProductPicker" style="display:none;"></div>
 
-    <div id="scanCamBlock" style="display:none;">
+    <div id="scanCamBlock">
       <div class="cam-wrap">
         <video id="camVideo" autoplay playsinline muted></video>
         <img id="camPhoto" style="display:none;">
@@ -990,9 +990,9 @@ const scanOverlay = document.getElementById('scanOverlay');
 document.getElementById('openScanBtn').addEventListener('click', ()=> openScanSheet());
 function openScanSheet(){
   STATE.scanProduct = null; STATE.scanCount = 0;
-  document.getElementById('scanCamBlock').style.display='none';
+  document.getElementById('scanCamBlock').style.display='flex';
+  document.getElementById('scanProductPicker').style.display='none';
   resetPhotoView();
-  renderScanPicker();
   openOverlay('scanOverlay');
 }
 function resetPhotoView(){
