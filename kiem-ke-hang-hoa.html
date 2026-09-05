@@ -639,7 +639,6 @@ html.dark .btn-primary{background:var(--brass);color:#2a1d09;}
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js" defer></script>
-<script src="https://docs.opencv.org/4.5.2/opencv.js" defer></script>
 <script>
 /* =========================================================================
    KIỂM KÊ HÀNG HÓA — Inventory Check PWA
@@ -1233,51 +1232,13 @@ function startDetectLoop(){
   const canvas = document.getElementById('camCanvas');
   const ctx = canvas.getContext('2d');
   cancelAnimationFrame(STATE.detectLoopId);
-  let lastRun = 0, useAdvanced = true;
   
+  // Just show live preview without detection (too slow with getImageData)
   async function loop(ts){
     if(!STATE.camStream){ return; }
     if(video.videoWidth){
       canvas.width = video.clientWidth; canvas.height = video.clientHeight;
-    }
-    if(video.readyState===4 && ts-lastRun>600){
-      lastRun = ts;
-      try{
-        // Try advanced color-based detection first (faster)
-        if(useAdvanced){
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const bottles = detectBottlesAdvanced(imgData, 50);
-          const bottleCount = bottles.length;
-          
-          if(bottleCount > 0){
-            document.getElementById('camResult').style.display='block';
-            document.getElementById('camCount').textContent = bottleCount;
-            document.getElementById('camLabel').textContent = 'Đã phát hiện (chưa xác nhận)';
-            STATE.scanCount = bottleCount;
-            document.getElementById('scanQtyBig').textContent = bottleCount;
-            
-            // Draw visualization with boxes
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            drawDetectedBottles(ctx, bottles, video.videoWidth, video.videoHeight, canvas.width, canvas.height);
-          }else{
-            document.getElementById('camResult').style.display='none';
-          }
-        }
-        
-        // Fallback to COCO-SSD if needed (slower but more reliable)
-        if(!useAdvanced && STATE.cocoModel){
-          const preds = await STATE.cocoModel.detect(video);
-          const relevant = preds.filter(p=> (p.class==='bottle') && p.score>0.4);
-          drawBoxes(ctx, canvas, video, relevant);
-          if(relevant.length){
-            document.getElementById('camResult').style.display='block';
-            document.getElementById('camCount').textContent = relevant.length;
-            document.getElementById('camLabel').textContent = 'Đã phát hiện AI (chưa xác nhận)';
-          }
-        }
-      }catch(e){ console.error('Detection error:', e); }
+      ctx.drawImage(video, 0, 0);
     }
     STATE.detectLoopId = requestAnimationFrame(loop);
   }
