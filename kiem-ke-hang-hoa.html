@@ -555,9 +555,9 @@ html.dark .btn-primary{background:var(--brass);color:#2a1d09;}
     <div class="sheet-handle"></div>
     <div class="sheet-title"><h3>Quét hàng bằng camera / ảnh</h3><button class="icon-btn" data-close="scanOverlay">✕</button></div>
 
-    <div id="scanProductPicker" style="display:none;"></div>
+    <div id="scanProductPicker"></div>
 
-    <div id="scanCamBlock">
+    <div id="scanCamBlock" style="display:none;">
       <div class="cam-wrap">
         <video id="camVideo" autoplay playsinline muted></video>
         <img id="camPhoto" style="display:none;">
@@ -990,9 +990,9 @@ const scanOverlay = document.getElementById('scanOverlay');
 document.getElementById('openScanBtn').addEventListener('click', ()=> openScanSheet());
 function openScanSheet(){
   STATE.scanProduct = null; STATE.scanCount = 0;
-  document.getElementById('scanCamBlock').style.display='flex';
-  document.getElementById('scanProductPicker').style.display='none';
+  document.getElementById('scanCamBlock').style.display='none';
   resetPhotoView();
+  renderScanPicker();
   openOverlay('scanOverlay');
 }
 function resetPhotoView(){
@@ -1069,20 +1069,34 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
   const data = imageData.data;
   const w = imageData.width, h = imageData.height;
   
-  // Create mask for bottle-colored pixels (dark reddish-brown)
+  // Create mask for bottle-colored pixels
+  // Bottles can be: dark brown glass, amber glass, clear glass with dark liquid
   const bottleMask = new Uint8ClampedArray(w*h);
   
   for(let i=0; i<w*h; i++){
     const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
     const brightness = (r+g+b)/3;
+    const alpha = data[i*4+3];
     
-    // Bottle glass is dark red-brown: low brightness, R > G > B
-    // Be generous with range: brightness 20-180
-    const isDarkGlass = brightness >= 20 && brightness <= 180 && 
-                        r > g && r > b && 
-                        (r - b) >= 15; // Red channel significantly higher than blue
+    if(alpha < 200) continue; // Skip transparent pixels
     
-    bottleMask[i] = isDarkGlass ? 255 : 0;
+    // Multiple detection patterns for bottles:
+    // 1. Dark reddish-brown glass (r > g and r > b)
+    const isDarkRed = brightness >= 20 && brightness <= 180 && r > g && r > b && (r - b) >= 10;
+    
+    // 2. Brownish (all channels low but equal-ish)
+    const isBrown = brightness >= 30 && brightness <= 140 && 
+                    Math.abs(r - g) <= 30 && Math.abs(g - b) <= 30 && Math.abs(r - b) <= 30;
+    
+    // 3. Very dark (black caps, labels)
+    const isVeryDark = brightness >= 5 && brightness <= 60 && 
+                       Math.abs(r - g) <= 20 && Math.abs(g - b) <= 20;
+    
+    // 4. Clear glass with dark liquid inside
+    const isDarkLiquid = brightness >= 10 && brightness <= 100 && 
+                         r > 5 && g > 5 && b > 5;
+    
+    bottleMask[i] = (isDarkRed || isBrown || isVeryDark || isDarkLiquid) ? 255 : 0;
   }
   
   // Dilate to fill small holes and connect nearby pixels
@@ -1133,8 +1147,8 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
     return result;
   }
   
-  let processed = dilate(bottleMask, 3);
-  processed = erode(processed, 1);
+  let processed = dilate(bottleMask, 4);
+  processed = erode(processed, 2);
   
   // Connected component labeling
   const labels = new Int32Array(w*h);
@@ -1178,10 +1192,11 @@ function detectBottlesAdvanced(imageData, minBottleSize=30){
         const width = bounds.maxX - bounds.minX + 1;
         const height = bounds.maxY - bounds.minY + 1;
         
-        // Bottles should be taller than wide (or at least similar)
-        // Accept aspect ratios between 0.6 and 3 (not too thin, not too wide)
+        // Bottles should be taller than wide
+        // Accept aspect ratios between 0.4 and 5
         const aspect = height / Math.max(width, 1);
-        if(aspect >= 0.5 && aspect <= 4){
+        // More lenient: accept more varied aspect ratios
+        if(aspect >= 0.4 && aspect <= 5){
           bottles.push({
             bounds,
             centerX: (bounds.minX + bounds.maxX) / 2,
@@ -1344,6 +1359,8 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
       document.getElementById('camLabel').textContent = bottleCount > 0 ? 'Đã phát hiện trong ảnh' : 'Không tìm thấy — điều chỉnh bằng nút +/−';
       status.textContent = bottleCount > 0 ? '✓ Phát hiện thành công — kiểm tra và điều chỉnh' : 'Không phát hiện chai — vui lòng nhập tay';
       if(bottleCount > 0) vibrate([15,40,15]);
+      // Log detected bottles for debugging
+      if(bottleCount > 0) console.log('Detected bottles:', bottles.map(b => `Size: ${b.width}x${b.height}, Pos: ${Math.round(b.centerX)},${Math.round(b.centerY)}`));
     }catch(err){ 
       console.error('Upload image processing error:', err);
       showToast('Xử lý ảnh thất bại: '+err.message); 
