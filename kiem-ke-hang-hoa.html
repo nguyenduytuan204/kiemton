@@ -1065,70 +1065,110 @@ async function ensureModel(){
    NOTE ON SCOPE: Improved detection with color-based + edge detection
    for better bottle counting. Falls back to COCO-SSD if needed. */
 
-// Advanced bottle detection using color + contour analysis (faster, more accurate)
-function detectBottlesAdvanced(imageData, minBottleSize=200){
+// Advanced bottle detection: detect cork/cap tops (bright round objects)
+function detectBottlesAdvanced(imageData, minBottleSize=50){
   const data = imageData.data;
   const w = imageData.width, h = imageData.height;
   
-  // Create binary mask: detect dark pixels (bottles are dark brown/black)
-  const mask = new Uint8ClampedArray(w*h);
+  // Strategy 1: Detect BOTTLE CAPS (cork/plastic tops - relatively bright, round)
+  const capMask = new Uint8ClampedArray(w*h);
+  const bottleMask = new Uint8ClampedArray(w*h);
+  
   for(let i=0; i<w*h; i++){
     const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
-    // Dark pixels: bottles, shadows
     const brightness = (r+g+b)/3;
     const saturation = Math.max(r,g,b) - Math.min(r,g,b);
-    // Detect dark + brownish or very dark
-    const isDark = brightness < 120;
-    const isBrown = isDark && r > g && r > b && saturation > 20;
-    const isVeryDark = brightness < 80;
-    mask[i] = (isBrown || isVeryDark) ? 255 : 0;
+    
+    // CORK/CAP detection: light tan/beige colors (typical cork)
+    // Usually brightness 140-200, with some reddish tone
+    const isCork = brightness > 130 && brightness < 220 && 
+                   saturation < 50 && 
+                   r >= g && r >= b;
+    capMask[i] = isCork ? 255 : 0;
+    
+    // BOTTLE BODY: dark reddish-brown
+    // Detect pixels that are darker and reddish
+    const isDarkRed = brightness < 150 && 
+                      brightness > 30 &&
+                      r > g && r > b &&
+                      saturation > 10;
+    const isVeryDark = brightness < 60;
+    bottleMask[i] = (isDarkRed || isVeryDark) ? 255 : 0;
   }
   
-  // Morphological operations: dilate + erode to clean up noise
-  const dilated = new Uint8ClampedArray(mask);
-  for(let i=0; i<3; i++){ // 3 iterations of dilate
-    for(let y=1; y<h-1; y++){
-      for(let x=1; x<w-1; x++){
-        const idx = y*w+x;
-        if(dilated[idx]===0){
-          if(dilated[idx-1]>0 || dilated[idx+1]>0 || dilated[idx-w]>0 || dilated[idx+w]>0 || 
-             dilated[idx-w-1]>0 || dilated[idx-w+1]>0 || dilated[idx+w-1]>0 || dilated[idx+w+1]>0){
-            dilated[idx]=255;
+  // Dilate caps to connect nearby pixels
+  function dilate(mask, iterations=2){
+    const result = new Uint8ClampedArray(mask);
+    for(let it=0; it<iterations; it++){
+      for(let y=1; y<h-1; y++){
+        for(let x=1; x<w-1; x++){
+          const idx = y*w+x;
+          if(result[idx]===0){
+            let hasNeighbor = false;
+            for(let dy=-1; dy<=1; dy++){
+              for(let dx=-1; dx<=1; dx++){
+                if(result[idx + dy*w + dx]>0){
+                  hasNeighbor=true; break;
+                }
+              }
+              if(hasNeighbor) break;
+            }
+            if(hasNeighbor) result[idx]=255;
           }
         }
       }
     }
+    return result;
   }
   
-  // Connected component labeling: count separate blobs
+  const dilatedCaps = dilate(capMask, 1);
+  const dilatedBottle = dilate(bottleMask, 2);
+  
+  // Combine: look for regions with caps near bottle bodies
+  const combinedMask = new Uint8ClampedArray(w*h);
+  for(let i=0; i<w*h; i++){
+    combinedMask[i] = (dilatedCaps[i] > 0 || dilatedBottle[i] > 0) ? 255 : 0;
+  }
+  
+  // Connected component labeling to count distinct blobs
   const labels = new Int32Array(w*h);
   let componentCount = 0, nextLabel = 1;
   
   function floodFill(startIdx){
     const stack = [startIdx];
     let size = 0;
+    const bounds = { minX: w, maxX: 0, minY: h, maxY: 0 };
     while(stack.length){
       const idx = stack.pop();
-      if(idx<0 || idx>=w*h || labels[idx]!==0 || dilated[idx]===0) continue;
+      if(idx<0 || idx>=w*h || labels[idx]!==0 || combinedMask[idx]===0) continue;
       labels[idx] = nextLabel;
       size++;
       const x = idx%w, y = Math.floor(idx/w);
+      bounds.minX = Math.min(bounds.minX, x);
+      bounds.maxX = Math.max(bounds.maxX, x);
+      bounds.minY = Math.min(bounds.minY, y);
+      bounds.maxY = Math.max(bounds.maxY, y);
       if(x>0) stack.push(idx-1);
       if(x<w-1) stack.push(idx+1);
       if(y>0) stack.push(idx-w);
       if(y<h-1) stack.push(idx+w);
     }
-    return size;
+    // Check aspect ratio: bottles are taller than wide (height > 0.8*width)
+    const width = bounds.maxX - bounds.minX + 1;
+    const height = bounds.maxY - bounds.minY + 1;
+    const aspectRatio = height / Math.max(width, 1);
+    return { size, aspectRatio, width, height };
   }
   
   for(let i=0; i<w*h; i++){
-    if(dilated[i]>0 && labels[i]===0){
-      const size = floodFill(i);
-      if(size > minBottleSize){ // Filter small noise
+    if(combinedMask[i]>0 && labels[i]===0){
+      const {size, aspectRatio, width, height} = floodFill(i);
+      // Filter: size must be reasonable, aspect ratio suggests bottle shape
+      if(size > minBottleSize && aspectRatio > 0.5){
         componentCount++;
         nextLabel++;
       }else{
-        // Erase small component
+        // Erase component
         for(let j=0; j<w*h; j++) if(labels[j]===nextLabel-1) labels[j]=0;
         nextLabel--;
       }
@@ -1157,7 +1197,7 @@ function startDetectLoop(){
         if(useAdvanced){
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const bottleCount = detectBottlesAdvanced(imgData, 180);
+          const bottleCount = detectBottlesAdvanced(imgData, 80);
           
           if(bottleCount > 0){
             document.getElementById('camResult').style.display='block';
@@ -1218,7 +1258,7 @@ document.getElementById('capturePhotoBtn').addEventListener('click', async ()=>{
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     
     // Try advanced detection first
-    const bottleCount = detectBottlesAdvanced(imgData, 150);
+    const bottleCount = detectBottlesAdvanced(imgData, 100);
     
     STATE.scanCount = bottleCount > 0 ? bottleCount : 0;
     document.getElementById('scanQtyBig').textContent = STATE.scanCount;
@@ -1266,7 +1306,7 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
     status.textContent = 'Đang phân tích ảnh…';
     try{
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const bottleCount = detectBottlesAdvanced(imgData, 150);
+      const bottleCount = detectBottlesAdvanced(imgData, 100);
       
       // Redraw with result
       ctx.clearRect(0, 0, canvas.width, canvas.height);
