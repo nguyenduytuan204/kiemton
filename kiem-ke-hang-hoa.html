@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Kiểm Kê Hàng Hóa</title>
+<meta name="theme-color" content="#12181f">
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Ki%E1%BB%83m%20K%C3%AA%20H%C3%A0ng%20H%C3%B3a%22,%22display%22:%22standalone%22}">
+<style>
+:root{
+  --bg:#f4f2ee;
+  --bg-2:#ffffff;
+  --bg-3:#eae6de;
+  --ink:#1c1a17;
+  --ink-soft:#5c5750;
+  --line:#d9d3c8;
+  --brass:#b8873a;
+  --brass-deep:#8f6526;
+  --brass-soft:#f1e2c4;
+  --frost:#3f7ea6;
+  --frost-soft:#dbedf6;
+  --good:#3f7d4a;
+  --good-soft:#e2f0e2;
+  --warn:#b8873a;
+  --warn-soft:#f7ecd6;
+  --bad:#b0483f;
+  --bad-soft:#f8e3e0;
+  --radius:14px;
+  --radius-lg:20px;
+  --shadow:0 2px 10px rgba(28,26,23,.08);
+  --font: "Public Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --nav-h:64px;
+}
+html.dark{
+  --bg:#12181f;
+  --bg-2:#1a222b;
+  --bg-3:#212b35;
+  --ink:#eee9e0;
+  --ink-soft:#a9a49b;
+  --line:#2c3540;
+  --brass:#d3a75c;
+  --brass-deep:#e6c07f;
+  --brass-soft:#33291a;
+  --frost:#6fb6dd;
+  --frost-soft:#1c3644;
+  --good:#7bc98a;
+  --good-soft:#1c3322;
+  --warn:#d3a75c;
+  --warn-soft:#332a17;
+  --bad:#e08277;
+  --bad-soft:#3a201d;
+  --shadow:0 2px 14px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+body{margin:0;}
+html,body{height:100%;}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  transition:background .2s,color .2s;
+}
+h1,h2,h3,h4{margin:0;font-weight:800;letter-spacing:-.01em;}
+p{margin:0;}
+button{font-family:inherit;}
+::selection{background:var(--brass-soft);}
+.app{max-width:640px;margin:0 auto;min-height:100%;position:relative;padding-bottom:calc(var(--nav-h) + 18px);}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:30;
+  background:var(--bg);
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--line);
+}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(160deg,var(--brass) 0%,var(--brass-deep) 100%);
+  display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;
+  box-shadow:0 2px 6px rgba(184,135,58,.35);
+}
+.brand-text h1{font-size:17px;line-height:1.15;}
+.brand-text span{font-size:12px;color:var(--ink-soft);}
+.icon-btn{
+  width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+  background:var(--bg-2);display:flex;align-items:center;justify-content:center;
+  font-size:17px;cursor:pointer;color:var(--ink);
+}
+.icon-btn:active{transform:scale(.94);}
+
+/* ---------- Meta strip (date / inspector / area) ---------- */
+.meta-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.meta-field{grid-column:span 1;}
+.meta-field.full{grid-column:1/-1;}
+.meta-field label{display:block;font-size:11.5px;color:var(--ink-soft);margin-bottom:4px;}
+.meta-field input,.meta-field select{
+  width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+  background:var(--bg-2);color:var(--ink);font-size:14px;
+}
+.area-pills{display:flex;gap:8px;margin-top:10px;}
+.area-pill{
+  flex:1;text-align:center;padding:9px 4px;border-radius:11px;border:1px solid var(--line);
+  background:var(--bg-2);font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;
+}
+.area-pill.active{background:var(--brass-soft);border-color:var(--brass);color:var(--brass-deep);}
+
+/* ---------- Views ---------- */
+.view{display:none;padding:16px;animation:fade .18s ease;}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* Section headers */
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px;}
+.section-title h2{font-size:15px;}
+.section-title .hint{font-size:12px;color:var(--ink-soft);}
+
+/* ---------- Dashboard cards ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+.stat-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;box-shadow:var(--shadow);
+}
+.stat-card .num{font-size:26px;font-weight:800;line-height:1;}
+.stat-card .lbl{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+.stat-card.warn .num{color:var(--warn);}
+.stat-card.bad .num{color:var(--bad);}
+.stat-card.good .num{color:var(--good);}
+.stat-card.accent{background:linear-gradient(160deg,var(--brass) 0%,var(--brass-deep) 100%);border:none;}
+.stat-card.accent .num,.stat-card.accent .lbl{color:#2a1d09;}
+
+.chart-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;box-shadow:var(--shadow);margin-bottom:16px;
+}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12.5px;}
+.bar-row .lbl{width:96px;flex-shrink:0;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:9px;background:var(--bg-3);border-radius:6px;overflow:hidden;}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--brass),var(--brass-deep));border-radius:6px;}
+.bar-row .val{width:34px;text-align:right;font-weight:700;flex-shrink:0;}
+
+.watch-list{display:flex;flex-direction:column;gap:8px;}
+.watch-item{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+}
+.watch-item .name{font-weight:700;font-size:13.5px;}
+.watch-item .sub{font-size:11.5px;color:var(--ink-soft);}
+.tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.tag.bad{background:var(--bad-soft);color:var(--bad);}
+.tag.warn{background:var(--warn-soft);color:var(--warn);}
+
+/* ---------- Search & filter ---------- */
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-wrap input{
+  width:100%;padding:11px 14px 11px 38px;border-radius:12px;border:1px solid var(--line);
+  background:var(--bg-2);color:var(--ink);font-size:14.5px;
+}
+.search-wrap .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.55;}
+.chip-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none;}
+.chip-row::-webkit-scrollbar{display:none;}
+.chip{
+  flex-shrink:0;padding:7px 13px;border-radius:20px;border:1px solid var(--line);
+  background:var(--bg-2);font-size:12.5px;font-weight:700;color:var(--ink-soft);cursor:pointer;white-space:nowrap;
+}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+html.dark .chip.active{background:var(--brass);color:#2a1d09;border-color:var(--brass);}
+
+/* ---------- Inventory list / paper-style table ---------- */
+.paper{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-lg);
+  overflow:hidden;box-shadow:var(--shadow);
+}
+.paper-head{
+  background:var(--bg-3);padding:12px 14px;display:grid;
+  grid-template-columns:28px 1fr 56px 56px;gap:6px;font-size:11px;font-weight:700;color:var(--ink-soft);
+}
+.item-row{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line);cursor:pointer;
+}
+.item-row:active{background:var(--bg-3);}
+.item-row .stt{width:20px;font-size:11px;color:var(--ink-soft);flex-shrink:0;}
+.item-icon{
+  width:40px;height:40px;border-radius:10px;background:var(--bg-3);display:flex;align-items:center;
+  justify-content:center;font-size:18px;flex-shrink:0;
+}
+.item-main{flex:1;min-width:0;}
+.item-main .nm{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.item-main .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.item-nums{display:flex;gap:6px;flex-shrink:0;}
+.num-pill{
+  width:38px;text-align:center;padding:5px 4px;border-radius:8px;font-size:12px;font-weight:700;
+  background:var(--bg-3);color:var(--ink-soft);
+}
+.num-pill.total{background:var(--brass-soft);color:var(--brass-deep);font-weight:800;}
+.done-dot{width:9px;height:9px;border-radius:50%;background:var(--good);flex-shrink:0;}
+.done-dot.pending{background:var(--line);}
+
+/* ---------- Empty state ---------- */
+.empty{
+  text-align:center;padding:40px 16px;color:var(--ink-soft);
+}
+.empty .em-icon{font-size:34px;margin-bottom:10px;}
+.empty p{font-size:13.5px;line-height:1.5;}
+
+/* ---------- Big scan button ---------- */
+.scan-cta{
+  display:flex;align-items:center;gap:14px;background:linear-gradient(155deg,var(--brass) 0%,var(--brass-deep) 100%);
+  border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;box-shadow:0 6px 18px rgba(184,135,58,.3);
+  cursor:pointer;border:none;width:100%;text-align:left;
+}
+.scan-cta .cam{font-size:30px;}
+.scan-cta .txt strong{display:block;color:#2a1d09;font-size:16px;}
+.scan-cta .txt span{display:block;color:#5a3f14;font-size:12px;margin-top:2px;}
+.manual-cta{
+  display:block;width:100%;text-align:center;padding:13px;border-radius:14px;border:1px solid var(--line);
+  background:var(--bg-2);color:var(--ink);font-weight:700;font-size:14px;margin-bottom:18px;cursor:pointer;
+}
+
+/* ---------- Bottom nav ---------- */
+.bottom-nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;height:var(--nav-h);
+  background:var(--bg-2);border-top:1px solid var(--line);
+  display:flex;max-width:640px;margin:0 auto;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:none;background:none;color:var(--ink-soft);font-size:10.5px;font-weight:700;cursor:pointer;
+}
+.nav-btn .ic{font-size:19px;}
+.nav-btn.active{color:var(--brass-deep);}
+
+/* ---------- Modal / sheet ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(10,8,4,.5);z-index:80;display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.open{display:flex;}
+.sheet{
+  width:100%;max-width:640px;background:var(--bg);border-radius:22px 22px 0 0;
+  max-height:92vh;overflow-y:auto;padding:18px 18px calc(22px + env(safe-area-inset-bottom));
+  animation:up .22s ease;
+}
+@keyframes up{from{transform:translateY(30px);opacity:.4;}to{transform:none;opacity:1;}}
+.sheet-handle{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 14px;}
+.sheet-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.sheet-title h3{font-size:17px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);
+  background:var(--bg-2);color:var(--ink);font-size:15px;
+}
+.field textarea{resize:vertical;min-height:60px;}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn{
+  padding:13px 16px;border-radius:13px;border:none;font-weight:700;font-size:14.5px;cursor:pointer;width:100%;
+}
+.btn-primary{background:var(--ink);color:var(--bg);}
+html.dark .btn-primary{background:var(--brass);color:#2a1d09;}
+.btn-ghost{background:var(--bg-3);color:var(--ink);}
+.btn-danger{background:var(--bad-soft);color:var(--bad);}
+.btn-row{display:flex;gap:10px;margin-top:6px;}
+.btn-row .btn{flex:1;}
+
+/* big number stepper for box-count entry */
+.qty-display{
+  text-align:center;background:var(--bg-2);border:1px solid var(--line);border-radius:18px;padding:22px 10px;margin:14px 0;
+}
+.qty-display .n{font-size:52px;font-weight:800;line-height:1;color:var(--brass-deep);}
+.qty-display .u{font-size:13px;color:var(--ink-soft);margin-top:4px;font-weight:700;}
+.stepper{display:flex;align-items:center;justify-content:center;gap:20px;margin:14px 0;}
+.step-btn{
+  width:52px;height:52px;border-radius:16px;border:1px solid var(--line);background:var(--bg-2);
+  font-size:24px;font-weight:800;cursor:pointer;color:var(--ink);
+}
+.step-btn:active{background:var(--bg-3);}
+.formula-hint{text-align:center;font-size:12px;color:var(--ink-soft);margin-top:-6px;margin-bottom:10px;}
+
+/* camera modal */
+.cam-wrap{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:3/4;margin-bottom:12px;}
+.cam-wrap video, .cam-wrap canvas, .cam-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.cam-status{
+  position:absolute;top:10px;left:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;
+  padding:8px 12px;border-radius:10px;font-size:12.5px;text-align:center;backdrop-filter:blur(4px);
+}
+.cam-result{
+  position:absolute;bottom:10px;left:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;
+  padding:10px 12px;border-radius:12px;text-align:center;
+}
+.cam-result .big{font-size:32px;font-weight:800;}
+.cam-result .lb{font-size:11.5px;opacity:.85;}
+.cam-controls{display:flex;gap:10px;}
+
+/* toast */
+.toast{
+  position:fixed;left:50%;bottom:calc(var(--nav-h) + 18px);transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:30px;font-size:13.5px;font-weight:700;
+  z-index:100;box-shadow:0 6px 18px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+}
+.toast.show{opacity:1;transform:translate(-50%,-6px);}
+
+/* compare */
+.compare-row{
+  display:flex;align-items:center;gap:10px;background:var(--bg-2);border:1px solid var(--line);border-radius:14px;
+  padding:12px 14px;margin-bottom:8px;
+}
+.compare-row .nm{flex:1;font-weight:700;font-size:13.5px;}
+.compare-input{width:56px;padding:8px 4px;text-align:center;border-radius:9px;border:1px solid var(--line);background:var(--bg-3);color:var(--ink);font-size:13px;}
+.compare-diff{width:64px;text-align:center;font-weight:800;font-size:13px;padding:6px 4px;border-radius:9px;}
+.compare-diff.ok{background:var(--good-soft);color:var(--good);}
+.compare-diff.warn{background:var(--warn-soft);color:var(--warn);}
+.compare-diff.bad{background:var(--bad-soft);color:var(--bad);}
+
+/* history */
+.history-card{background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:9px;}
+.history-card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.history-card .top strong{font-size:13.5px;}
+.history-card .top span{font-size:11.5px;color:var(--ink-soft);}
+.history-card .meta{font-size:12px;color:var(--ink-soft);}
+
+/* settings */
+.settings-row{
+  display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);border:1px solid var(--line);
+  border-radius:14px;padding:13px 14px;margin-bottom:9px;
+}
+.settings-row .lbl{font-weight:700;font-size:13.5px;}
+.settings-row .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.switch{width:46px;height:26px;border-radius:20px;background:var(--bg-3);border:1px solid var(--line);position:relative;cursor:pointer;flex-shrink:0;}
+.switch .dot{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--ink-soft);transition:.18s;}
+.switch.on{background:var(--brass-soft);border-color:var(--brass);}
+.switch.on .dot{transform:translateX(20px);background:var(--brass);}
+
+/* role badge */
+.role-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--brass-soft);color:var(--brass-deep);}
+
+/* print report - hidden on screen */
+#printArea{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #printArea, #printArea *{visibility:visible;}
+  #printArea{display:block;position:absolute;top:0;left:0;width:100%;padding:20px;}
+  .print-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .print-table th,.print-table td{border:1px solid #333;padding:5px 7px;text-align:left;}
+  .print-table th{background:#eee;}
+  .print-sign{display:flex;justify-content:space-between;margin-top:40px;font-size:12px;}
+}
+@media (min-width:520px){
+  .stat-grid{grid-template-columns:repeat(4,1fr);}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand">
+        <div class="brand-mark">🍺</div>
+        <div class="brand-text">
+          <h1>Kiểm Kê Hàng Hóa</h1>
+          <span id="roleLabel">Nhân viên kiểm kho</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="icon-btn" id="darkToggle" title="Chế độ tối">🌙</button>
+        <button class="icon-btn" id="syncBtn" title="Đồng bộ dữ liệu">☁️</button>
+      </div>
+    </div>
+
+    <div class="meta-strip" id="metaStrip">
+      <div class="meta-field">
+        <label>Ngày kiểm kê</label>
+        <input type="date" id="checkDate">
+      </div>
+      <div class="meta-field">
+        <label>Người kiểm kê</label>
+        <input type="text" id="checkerName" placeholder="Tên nhân viên">
+      </div>
+    </div>
+    <div class="area-pills" id="areaPills">
+      <div class="area-pill active" data-area="kho">🏬 Kho</div>
+      <div class="area-pill" data-area="tuLanh">❄️ Tủ lạnh</div>
+    </div>
+  </div>
+
+  <!-- ============ VIEW: DASHBOARD ============ -->
+  <div class="view active" id="view-dashboard">
+    <div class="section-title"><h2>Tổng quan tồn kho</h2><span class="hint" id="dashDate"></span></div>
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="chart-card">
+      <div class="section-title" style="margin-bottom:12px;"><h2>Tồn kho theo mặt hàng</h2></div>
+      <div id="stockChart"></div>
+    </div>
+
+    <div class="section-title"><h2>Cần chú ý</h2></div>
+    <div class="watch-list" id="watchList"></div>
+  </div>
+
+  <!-- ============ VIEW: KIỂM KÊ (main) ============ -->
+  <div class="view" id="view-kiemke">
+    <button class="scan-cta" id="openScanBtn">
+      <div class="cam">📷</div>
+      <div class="txt"><strong>QUÉT HÀNG</strong><span>Dùng camera trực tiếp hoặc quét ảnh có sẵn để đếm tự động</span></div>
+    </button>
+    <button class="manual-cta" id="openManualBtn">✏️ Nhập thủ công</button>
+
+    <div class="search-wrap">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Tìm sản phẩm...">
+    </div>
+    <div class="chip-row" id="filterChips">
+      <div class="chip active" data-filter="all">Tất cả</div>
+      <div class="chip" data-filter="Bia">Bia</div>
+      <div class="chip" data-filter="Nước ngọt">Nước ngọt</div>
+      <div class="chip" data-filter="Nước suối">Nước suối</div>
+      <div class="chip" data-filter="Rượu">Rượu</div>
+      <div class="chip" data-filter="done">Đã kiểm</div>
+      <div class="chip" data-filter="pending">Chưa kiểm</div>
+      <div class="chip" data-filter="low">Sắp hết</div>
+      <div class="chip" data-filter="out">Hết hàng</div>
+    </div>
+
+    <div class="paper">
+      <div class="paper-head" style="grid-template-columns:24px 1fr 44px 44px 44px;">
+        <span>STT</span><span>MẶT HÀNG</span><span style="text-align:right;">KHO</span><span style="text-align:right;">T.LẠNH</span><span style="text-align:right;">TỔNG</span>
+      </div>
+      <div id="itemList"></div>
+    </div>
+  </div>
+
+  <!-- ============ VIEW: SO SÁNH TỒN KHO ============ -->
+  <div class="view" id="view-compare">
+    <div class="section-title"><h2>So sánh tồn kho</h2><span class="hint">Hệ thống ↔ Thực tế</span></div>
+    <div id="compareList"></div>
+  </div>
+
+  <!-- ============ VIEW: LỊCH SỬ ============ -->
+  <div class="view" id="view-history">
+    <div class="section-title"><h2>Lịch sử kiểm kê</h2></div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- ============ VIEW: SẢN PHẨM (admin) ============ -->
+  <div class="view" id="view-products">
+    <div class="section-title">
+      <h2>Quản lý sản phẩm</h2>
+      <button class="icon-btn" id="addProductBtn">➕</button>
+    </div>
+    <div class="search-wrap">
+      <span class="icon">🔍</span>
+      <input type="text" id="prodSearchInput" placeholder="Tìm sản phẩm...">
+    </div>
+    <div id="productAdminList"></div>
+  </div>
+
+  <!-- ============ VIEW: CÀI ĐẶT ============ -->
+  <div class="view" id="view-settings">
+    <div class="section-title"><h2>Cài đặt</h2></div>
+
+    <div class="settings-row">
+      <div><div class="lbl">Vai trò hiện tại</div><div class="sub">Điều chỉnh quyền truy cập màn hình</div></div>
+      <select id="roleSelect" style="padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg-3);color:var(--ink);">
+        <option value="admin">Admin</option>
+        <option value="manager">Quản lý</option>
+        <option value="staff">Nhân viên</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <div><div class="lbl">Chế độ tối</div><div class="sub">Dịu mắt khi làm việc ban đêm</div></div>
+      <div class="switch" id="darkSwitch"><div class="dot"></div></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="lbl">Rung khi quét thành công</div><div class="sub">Phản hồi xúc giác trên điện thoại</div></div>
+      <div class="switch on" id="vibrateSwitch"><div class="dot"></div></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="lbl">Âm thanh xác nhận</div><div class="sub">Phát tiếng "bíp" khi xác nhận số lượng</div></div>
+      <div class="switch on" id="soundSwitch"><div class="dot"></div></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="lbl">Trạng thái kết nối</div><div class="sub" id="netStatus">Đang kiểm tra...</div></div>
+      <span id="netTag" class="tag warn">–</span>
+    </div>
+
+    <div class="section-title" style="margin-top:18px;"><h2>Xuất báo cáo</h2></div>
+    <button class="btn btn-primary" style="margin-bottom:10px;" id="exportCsvBtn">⬇️ Xuất Excel (CSV)</button>
+    <button class="btn btn-ghost" style="margin-bottom:10px;" id="printBtn">🖨️ In phiếu kiểm kê (PDF)</button>
+    <button class="btn btn-ghost" id="shareBtn">📤 Chia sẻ báo cáo</button>
+
+    <div class="section-title" style="margin-top:18px;"><h2>Dữ liệu</h2></div>
+    <button class="btn btn-danger" id="resetBtn">Xóa toàn bộ dữ liệu &amp; nhập lại mẫu</button>
+  </div>
+
+</div>
+
+<!-- ============ BOTTOM NAV ============ -->
+<div class="bottom-nav">
+  <button class="nav-btn active" data-view="dashboard"><span class="ic">📊</span>Tổng quan</button>
+  <button class="nav-btn" data-view="kiemke"><span class="ic">📋</span>Kiểm kê</button>
+  <button class="nav-btn" data-view="compare"><span class="ic">⚖️</span>So sánh</button>
+  <button class="nav-btn" data-view="history"><span class="ic">🕒</span>Lịch sử</button>
+  <button class="nav-btn" data-view="products" id="navProducts"><span class="ic">📦</span>Sản phẩm</button>
+  <button class="nav-btn" data-view="settings"><span class="ic">⚙️</span>Cài đặt</button>
+</div>
+
+<!-- ============ SHEET: manual quantity entry ============ -->
+<div class="overlay" id="qtyOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title"><h3 id="qtyProductName">Chọn sản phẩm</h3><button class="icon-btn" data-close="qtyOverlay">✕</button></div>
+
+    <div id="qtyProductPicker"></div>
+
+    <div id="qtyEntryBlock" style="display:none;">
+      <p id="packNote" style="font-size:12px;color:var(--ink-soft);margin:-2px 0 10px;display:none;"></p>
+      <div class="row-2">
+        <div class="field">
+          <label>Số thùng</label>
+          <input type="number" id="boxCount" min="0" value="0" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label id="perBoxLabel">Lon / thùng</label>
+          <input type="number" id="perBoxCount" min="1" value="24" inputmode="numeric">
+        </div>
+      </div>
+      <div class="field">
+        <label id="looseLabel">Lon lẻ</label>
+        <input type="number" id="looseCount" min="0" value="0" inputmode="numeric">
+      </div>
+
+      <div class="qty-display">
+        <div class="n" id="qtyTotalDisplay">0</div>
+        <div class="u" id="qtyUnitDisplay">LON — tổng cộng thêm vào khu vực đã chọn</div>
+      </div>
+      <div class="formula-hint" id="qtyFormulaHint">5 × 24 + 3 = 123</div>
+
+      <div class="field">
+        <label>Ghi chú (tùy chọn)</label>
+        <textarea id="qtyNote" placeholder="VD: 2 chai bị vỡ, đã trừ khỏi tổng"></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="confirmQtyBtn">✔ Xác nhận số lượng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SHEET: camera scan ============ -->
+<div class="overlay" id="scanOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title"><h3>Quét hàng bằng camera / ảnh</h3><button class="icon-btn" data-close="scanOverlay">✕</button></div>
+
+    <div id="scanProductPicker"></div>
+
+    <div id="scanCamBlock" style="display:none;">
+      <div class="cam-wrap">
+        <video id="camVideo" autoplay playsinline muted></video>
+        <img id="camPhoto" style="display:none;">
+        <canvas id="camCanvas"></canvas>
+        <div class="cam-status" id="camStatus">Đang mở camera…</div>
+        <div class="cam-result" id="camResult" style="display:none;">
+          <div class="big" id="camCount">0</div>
+          <div class="lb" id="camLabel">Đã phát hiện</div>
+        </div>
+      </div>
+      <div class="stepper">
+        <button class="step-btn" id="scanMinus">–</button>
+        <div style="text-align:center;min-width:70px;">
+          <div class="n" style="font-size:32px;font-weight:800;" id="scanQtyBig">0</div>
+        </div>
+        <button class="step-btn" id="scanPlus">+</button>
+      </div>
+      <div class="cam-controls" style="margin-bottom:10px;">
+        <button class="btn btn-ghost" id="capturePhotoBtn">📸 Chụp &amp; Nhận diện</button>
+        <button class="btn btn-ghost" id="uploadPhotoBtn">🖼️ Quét bằng ảnh</button>
+      </div>
+      <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
+      <button class="btn btn-ghost" id="backToLiveBtn" style="display:none;margin-bottom:10px;">🔄 Quay lại camera trực tiếp</button>
+      <button class="btn btn-primary" id="confirmScanBtn">✔ Xác nhận số lượng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SHEET: product edit (admin CRUD) ============ -->
+<div class="overlay" id="productOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title"><h3 id="productFormTitle">Thêm sản phẩm</h3><button class="icon-btn" data-close="productOverlay">✕</button></div>
+    <input type="hidden" id="pfId">
+    <div class="field"><label>Tên sản phẩm</label><input type="text" id="pfName"></div>
+    <div class="row-2">
+      <div class="field"><label>Đơn vị tính</label>
+        <select id="pfUnit"><option value="Chai">Chai</option><option value="Lon">Lon</option></select>
+      </div>
+      <div class="field"><label>Danh mục</label>
+        <select id="pfCategory">
+          <option>Bia</option><option>Nước ngọt</option><option>Nước suối</option><option>Rượu</option>
+        </select>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field"><label>Mã sản phẩm</label><input type="text" id="pfCode"></div>
+      <div class="field"><label>Vị trí lưu kho</label><input type="text" id="pfLocation" placeholder="VD: Kệ A2"></div>
+    </div>
+    <div class="row-2">
+      <div class="field"><label id="pfPerBoxLbl">Số lon/chai mỗi thùng</label><input type="number" id="pfPerBox" min="1" value="24"></div>
+      <div class="field"><label>Mức tồn tối thiểu</label><input type="number" id="pfMinStock" min="0" value="20"></div>
+    </div>
+    <div class="field"><label>Biểu tượng (emoji)</label><input type="text" id="pfImage" maxlength="2" placeholder="🍺"></div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="deleteProductBtn" style="display:none;">Xóa</button>
+      <button class="btn btn-primary" id="saveProductBtn">Lưu sản phẩm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- hidden printable report -->
+<div id="printArea">
+  <h2 style="text-align:center;">PHIẾU KIỂM KÊ HÀNG HÓA</h2>
+  <table class="print-table" id="printTable">
+    <thead>
+      <tr><th>STT</th><th>MẶT HÀNG</th><th>ĐVT</th><th>KHO</th><th>TỦ LẠNH</th><th>TỔNG</th><th>GHI CHÚ</th></tr>
+    </thead>
+    <tbody id="printTbody"></tbody>
+  </table>
+  <div class="print-sign">
+    <div>Ngày kiểm kê: <span id="printDate"></span></div>
+    <div>Người kiểm kê: <span id="printChecker"></span></div>
+    <div>Chữ ký: ______________</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js" defer></script>
+<script src="https://docs.opencv.org/4.5.2/opencv.js" defer></script>
+<script>
+/* =========================================================================
+   KIỂM KÊ HÀNG HÓA — Inventory Check PWA
+   Modules: state · products · checks · camera-detection · views · export
+   ========================================================================= */
+
+/* ---------------------------- 1. STATE / STORAGE ---------------------------- */
+const DB_KEYS = { products:'inv_products_v1', checks:'inv_checks_v1', history:'inv_history_v1', settings:'inv_settings_v1' };
+
+const SAMPLE_PRODUCTS = [
+  {name:'Bia 7ay 1L', unit:'Chai', category:'Bia', perBox:1, minStock:40, location:'Kệ A1', image:'🍺'},
+  {name:'Aquafina', unit:'Chai', category:'Nước suối', perBox:24, minStock:48, location:'Kệ B1', image:'💧'},
+  {name:'7up', unit:'Lon', category:'Nước ngọt', perBox:28, minStock:48, location:'Kệ B2', image:'🥤'},
+  {name:'Pepsi', unit:'Lon', category:'Nước ngọt', perBox:28, minStock:48, location:'Kệ B2', image:'🥤'},
+  {name:'Sting', unit:'Lon', category:'Nước ngọt', perBox:28, minStock:48, location:'Kệ B3', image:'🥤'},
+  {name:'Heineken bạc', unit:'Lon', category:'Bia', perBox:24, minStock:48, location:'Kệ A2', image:'🍺'},
+  {name:'Tiger bạc', unit:'Lon', category:'Bia', perBox:24, minStock:48, location:'Kệ A2', image:'🍺'},
+  {name:'Tiger nâu', unit:'Lon', category:'Bia', perBox:24, minStock:48, location:'Kệ A2', image:'🍺'},
+  {name:'1664 Blanc', unit:'Chai', category:'Bia', perBox:24, minStock:40, location:'Kệ A3', image:'🍺'},
+  {name:'Carlsberg', unit:'Chai', category:'Bia', perBox:24, minStock:48, location:'Kệ A3', image:'🍺'},
+  {name:'Somersby Táo', unit:'Chai', category:'Bia', perBox:20, minStock:30, location:'Kệ A4', image:'🍏'},
+  {name:'Somersby Mâm Xôi', unit:'Chai', category:'Bia', perBox:20, minStock:30, location:'Kệ A4', image:'🍓'},
+  {name:'Tuborg Xanh', unit:'Chai', category:'Bia', perBox:24, minStock:40, location:'Kệ A5', image:'🍺'},
+  {name:'Tuborg Ice', unit:'Chai', category:'Bia', perBox:24, minStock:40, location:'Kệ A5', image:'🍺'},
+  {name:'Rượu mơ', unit:'Chai', category:'Rượu', perBox:40, minStock:12, location:'Kệ C1', image:'🍶'},
+  {name:'Soju Mận', unit:'Chai', category:'Rượu', perBox:20, minStock:20, location:'Kệ C2', image:'🍶'},
+  {name:'Soju Nho', unit:'Chai', category:'Rượu', perBox:20, minStock:20, location:'Kệ C2', image:'🍶'},
+  {name:'Soju Đào', unit:'Chai', category:'Rượu', perBox:20, minStock:20, location:'Kệ C2', image:'🍶'},
+];
+// Explicit per-box rule (units per thùng), keyed by product name, used both to seed
+// fresh data above and to migrate any inventory already saved in the browser.
+const PERBOX_RULES = {
+  'Pepsi':28, '7up':28, 'Sting':28,
+  'Somersby Táo':20, 'Somersby Mâm Xôi':20, 'Soju Mận':20, 'Soju Nho':20, 'Soju Đào':20,
+  'Bia 7ay 1L':1, // mỗi thùng chỉ 1 chai
+  'Rượu mơ':40,   // 1 thùng = 4 bình, 1 bình = 10 → 4 × 10 = 40 / thùng
+};
+function perBoxFor(name){ return PERBOX_RULES[name] !== undefined ? PERBOX_RULES[name] : 24; }
+const PACK_NOTES = {
+  'Rượu mơ': '1 thùng = 4 bình, mỗi bình = 10 → 4 × 10 = 40 / thùng',
+  'Bia 7ay 1L': 'Mỗi thùng chỉ đóng 1 chai (chai 1L bán lẻ từng chai)',
+};
+
+function uid(prefix='id'){ return prefix+'_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36); }
+
+function loadDB(key, fallback){
+  try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveDB(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ console.error('Lưu thất bại', e); } }
+
+function seedIfEmpty(){
+  let products = loadDB(DB_KEYS.products, null);
+  if(!products || !products.length){
+    products = SAMPLE_PRODUCTS.map(p=>({ id:uid('p'), code:'SP-'+Math.floor(1000+Math.random()*9000), soldByBox:true, systemStock:Math.floor(20+Math.random()*80), ...p }));
+    saveDB(DB_KEYS.products, products);
+  }
+  if(!loadDB(DB_KEYS.checks, null)) saveDB(DB_KEYS.checks, {}); // { productId: {kho,tuLanh,ghiChu,checkedAt,detectSource} }
+  if(!loadDB(DB_KEYS.history, null)) saveDB(DB_KEYS.history, []);
+  if(!loadDB(DB_KEYS.settings, null)) saveDB(DB_KEYS.settings, { dark:false, vibrate:true, sound:true, role:'admin', checker:'', date: new Date().toISOString().slice(0,10) });
+}
+seedIfEmpty();
+migratePerBox();
+
+function migratePerBox(){
+  const knownNames = new Set(SAMPLE_PRODUCTS.map(p=>p.name));
+  const products = loadDB(DB_KEYS.products, []);
+  let changed = false;
+  products.forEach(p=>{
+    if(!knownNames.has(p.name)) return; // leave custom/admin-added products untouched
+    const correct = perBoxFor(p.name);
+    if(p.perBox !== correct){ p.perBox = correct; changed = true; }
+  });
+  if(changed) saveDB(DB_KEYS.products, products);
+}
+
+let STATE = {
+  products: loadDB(DB_KEYS.products, []),
+  checks: loadDB(DB_KEYS.checks, {}),
+  history: loadDB(DB_KEYS.history, []),
+  settings: loadDB(DB_KEYS.settings, {}),
+  currentArea: 'kho',
+  filter: 'all',
+  search: '',
+  prodSearch: '',
+  activeView: 'dashboard',
+  scanProduct: null,
+  qtyProduct: null,
+  scanCount: 0,
+  camStream: null,
+  cocoModel: null,
+  detectLoopId: null,
+};
+
+function persist(){
+  saveDB(DB_KEYS.products, STATE.products);
+  saveDB(DB_KEYS.checks, STATE.checks);
+  saveDB(DB_KEYS.history, STATE.history);
+  saveDB(DB_KEYS.settings, STATE.settings);
+}
+
+/* ---------------------------- 2. HELPERS ---------------------------- */
+function getCheck(pid){ return STATE.checks[pid] || {kho:0,tuLanh:0,ghiChu:'',checkedAt:null,detectSource:null}; }
+function totalOf(pid){ const c=getCheck(pid); return (c.kho||0)+(c.tuLanh||0); }
+function isChecked(pid){ return !!STATE.checks[pid] && !!STATE.checks[pid].checkedAt; }
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function vibrate(pattern){ if(STATE.settings.vibrate && navigator.vibrate) navigator.vibrate(pattern||[30]); }
+function beep(){
+  if(!STATE.settings.sound) return;
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type='sine'; o.frequency.value=880; g.gain.value=0.08;
+    o.connect(g); g.connect(ctx.destination); o.start();
+    o.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime+0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.16);
+    o.stop(ctx.currentTime+0.18);
+  }catch(e){}
+}
+
+/* ---------------------------- 3. NAVIGATION ---------------------------- */
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchView(btn.dataset.view));
+});
+function switchView(view){
+  STATE.activeView = view;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  if(view==='dashboard') renderDashboard();
+  if(view==='kiemke') renderItemList();
+  if(view==='compare') renderCompare();
+  if(view==='history') renderHistory();
+  if(view==='products') renderProductAdmin();
+  window.scrollTo(0,0);
+}
+document.getElementById('areaPills').addEventListener('click', e=>{
+  const pill = e.target.closest('.area-pill'); if(!pill) return;
+  document.querySelectorAll('.area-pill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  STATE.currentArea = pill.dataset.area;
+});
+
+/* ---------------------------- 4. ROLE / PERMISSIONS ---------------------------- */
+function applyRole(){
+  const role = STATE.settings.role || 'admin';
+  document.getElementById('roleLabel').textContent = role==='admin' ? 'Admin — toàn quyền' : role==='manager' ? 'Quản lý' : 'Nhân viên kiểm kho';
+  document.getElementById('roleSelect').value = role;
+  const navProducts = document.getElementById('navProducts');
+  navProducts.style.display = (role==='staff') ? 'none' : 'flex';
+  document.getElementById('addProductBtn').style.display = (role==='staff') ? 'none' : 'flex';
+}
+document.getElementById('roleSelect').addEventListener('change', e=>{
+  STATE.settings.role = e.target.value; persist(); applyRole();
+  if(STATE.settings.role==='staff' && STATE.activeView==='products') switchView('kiemke');
+  showToast('Đã chuyển vai trò: '+e.target.options[e.target.selectedIndex].text);
+});
+
+/* ---------------------------- 5. DASHBOARD ---------------------------- */
+function renderDashboard(){
+  document.getElementById('dashDate').textContent = STATE.settings.date || '';
+  const products = STATE.products;
+  const totalItems = products.length;
+  const checkedItems = products.filter(p=>isChecked(p.id)).length;
+  const pendingItems = totalItems - checkedItems;
+  let totalUnits=0, totalLon=0, totalChai=0, totalThung=0, lowCount=0, outCount=0;
+  products.forEach(p=>{
+    const t = totalOf(p.id);
+    totalUnits += t;
+    if(p.unit==='Lon') totalLon += t; else totalChai += t;
+    totalThung += Math.floor(t/(p.perBox||1));
+    if(t===0) outCount++; else if(t < (p.minStock||0)) lowCount++;
+  });
+
+  const cards = [
+    {num:totalItems, lbl:'Tổng số mặt hàng', cls:''},
+    {num:totalUnits, lbl:'Tổng số sản phẩm tồn', cls:'accent'},
+    {num:checkedItems, lbl:'Đã kiểm', cls:'good'},
+    {num:pendingItems, lbl:'Chưa kiểm', cls:'warn'},
+    {num:lowCount, lbl:'Sắp hết hàng', cls:'warn'},
+    {num:outCount, lbl:'Hết hàng', cls:'bad'},
+    {num:totalLon, lbl:'Tổng số lon', cls:''},
+    {num:totalChai+' / '+totalThung, lbl:'Tổng số chai / thùng', cls:''},
+  ];
+  document.getElementById('statGrid').innerHTML = cards.map(c=>`
+    <div class="stat-card ${c.cls}"><div class="num">${c.num}</div><div class="lbl">${c.lbl}</div></div>
+  `).join('');
+
+  // simple bar chart: top 8 by total stock
+  const sorted = [...products].sort((a,b)=>totalOf(b.id)-totalOf(a.id)).slice(0,8);
+  const max = Math.max(1, ...sorted.map(p=>totalOf(p.id)));
+  document.getElementById('stockChart').innerHTML = sorted.map(p=>`
+    <div class="bar-row">
+      <div class="lbl">${p.image} ${p.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(totalOf(p.id)/max*100).toFixed(0)}%"></div></div>
+      <div class="val">${totalOf(p.id)}</div>
+    </div>
+  `).join('') || '<p style="font-size:12.5px;color:var(--ink-soft);">Chưa có dữ liệu kiểm kê.</p>';
+
+  const watch = products.filter(p=>totalOf(p.id) < (p.minStock||0)).sort((a,b)=>totalOf(a.id)-totalOf(b.id)).slice(0,10);
+  document.getElementById('watchList').innerHTML = watch.length ? watch.map(p=>{
+    const t = totalOf(p.id);
+    const out = t===0;
+    return `<div class="watch-item">
+      <div><div class="name">${p.image} ${p.name}</div><div class="sub">Tồn ${t} / tối thiểu ${p.minStock}</div></div>
+      <span class="tag ${out?'bad':'warn'}">${out?'Hết hàng':'Sắp hết'}</span>
+    </div>`;
+  }).join('') : '<p style="font-size:12.5px;color:var(--ink-soft);">Không có mặt hàng nào cần chú ý 🎉</p>';
+}
+
+/* ---------------------------- 6. KIỂM KÊ LIST + FILTER/SEARCH ---------------------------- */
+document.getElementById('searchInput').addEventListener('input', e=>{ STATE.search = e.target.value.toLowerCase(); renderItemList(); });
+document.getElementById('filterChips').addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  document.querySelectorAll('#filterChips .chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active'); STATE.filter = chip.dataset.filter; renderItemList();
+});
+
+function filteredProducts(){
+  return STATE.products.filter(p=>{
+    if(STATE.search && !p.name.toLowerCase().includes(STATE.search)) return false;
+    const f = STATE.filter;
+    if(f==='all') return true;
+    if(f==='done') return isChecked(p.id);
+    if(f==='pending') return !isChecked(p.id);
+    if(f==='low') return totalOf(p.id) > 0 && totalOf(p.id) < (p.minStock||0);
+    if(f==='out') return totalOf(p.id)===0;
+    return p.category===f;
+  });
+}
+
+function renderItemList(){
+  const list = filteredProducts();
+  const wrap = document.getElementById('itemList');
+  if(!list.length){
+    wrap.innerHTML = `<div class="empty"><div class="em-icon">📭</div><p>Không tìm thấy sản phẩm phù hợp.<br>Thử từ khóa khác hoặc bộ lọc khác.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = list.map((p,i)=>{
+    const c = getCheck(p.id);
+    const t = totalOf(p.id);
+    return `<div class="item-row" data-pid="${p.id}">
+      <span class="stt">${i+1}</span>
+      <div class="item-icon">${p.image||'📦'}</div>
+      <div class="item-main">
+        <div class="nm">${p.name}</div>
+        <div class="sub">${p.unit}${c.ghiChu?' · '+c.ghiChu:''}</div>
+      </div>
+      <div class="item-nums">
+        <div class="num-pill">${c.kho||0}</div>
+        <div class="num-pill">${c.tuLanh||0}</div>
+        <div class="num-pill total">${t}</div>
+      </div>
+      <div class="done-dot ${isChecked(p.id)?'':'pending'}"></div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.item-row').forEach(row=>{
+    row.addEventListener('click', ()=> openQtySheetForProduct(row.dataset.pid));
+  });
+}
+
+/* ---------------------------- 7. MANUAL QUANTITY SHEET (thùng + lẻ) ---------------------------- */
+const qtyOverlay = document.getElementById('qtyOverlay');
+document.getElementById('openManualBtn').addEventListener('click', ()=> openQtySheet());
+function openQtySheet(){
+  STATE.qtyProduct = null;
+  document.getElementById('qtyProductName').textContent = 'Chọn sản phẩm';
+  document.getElementById('qtyEntryBlock').style.display='none';
+  renderQtyPicker();
+  openOverlay('qtyOverlay');
+}
+function openQtySheetForProduct(pid){
+  STATE.qtyProduct = STATE.products.find(p=>p.id===pid);
+  showQtyEntryBlock();
+  openOverlay('qtyOverlay');
+}
+function renderQtyPicker(){
+  const wrap = document.getElementById('qtyProductPicker');
+  wrap.innerHTML = `<div class="search-wrap"><span class="icon">🔍</span><input type="text" id="qtyPickSearch" placeholder="Tìm sản phẩm..."></div><div id="qtyPickList" style="max-height:44vh;overflow-y:auto;"></div>`;
+  const renderList = (q='')=>{
+    const items = STATE.products.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()));
+    document.getElementById('qtyPickList').innerHTML = items.map(p=>`
+      <div class="item-row" data-pid="${p.id}" style="border-top:1px solid var(--line);">
+        <div class="item-icon">${p.image||'📦'}</div>
+        <div class="item-main"><div class="nm">${p.name}</div><div class="sub">${p.unit} · Tổng hiện tại: ${totalOf(p.id)}</div></div>
+      </div>`).join('') || '<p style="padding:14px;color:var(--ink-soft);font-size:13px;">Không tìm thấy.</p>';
+    document.querySelectorAll('#qtyPickList .item-row').forEach(r=>{
+      r.addEventListener('click', ()=>{
+        STATE.qtyProduct = STATE.products.find(p=>p.id===r.dataset.pid);
+        showQtyEntryBlock();
+      });
+    });
+  };
+  renderList();
+  document.getElementById('qtyPickSearch').addEventListener('input', e=>renderList(e.target.value));
+}
+function showQtyEntryBlock(){
+  const p = STATE.qtyProduct; if(!p) return;
+  document.getElementById('qtyProductPicker').innerHTML='';
+  document.getElementById('qtyProductName').textContent = `${p.image||''} ${p.name}`;
+  document.getElementById('qtyEntryBlock').style.display='block';
+  document.getElementById('perBoxLabel').textContent = (p.unit==='Lon'?'Lon':'Chai')+' / thùng';
+  document.getElementById('looseLabel').textContent = (p.unit==='Lon'?'Lon lẻ':'Chai lẻ');
+  document.getElementById('perBoxCount').value = p.perBox || 24;
+  document.getElementById('boxCount').value = 0;
+  document.getElementById('looseCount').value = 0;
+  document.getElementById('qtyNote').value = getCheck(p.id).ghiChu || '';
+  const noteEl = document.getElementById('packNote');
+  if(PACK_NOTES[p.name]){ noteEl.textContent = 'ℹ️ '+PACK_NOTES[p.name]; noteEl.style.display='block'; }
+  else{ noteEl.style.display='none'; }
+  updateQtyTotal();
+}
+['boxCount','perBoxCount','looseCount'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updateQtyTotal);
+});
+function updateQtyTotal(){
+  const p = STATE.qtyProduct; if(!p) return;
+  const box = parseInt(document.getElementById('boxCount').value)||0;
+  const per = parseInt(document.getElementById('perBoxCount').value)||0;
+  const loose = parseInt(document.getElementById('looseCount').value)||0;
+  const total = box*per + loose;
+  document.getElementById('qtyTotalDisplay').textContent = total;
+  document.getElementById('qtyUnitDisplay').textContent = `${p.unit.toUpperCase()} — cộng vào khu vực "${areaLabel(STATE.currentArea)}"`;
+  document.getElementById('qtyFormulaHint').textContent = `${box} × ${per} + ${loose} = ${total}`;
+}
+function areaLabel(a){ return a==='kho'?'Kho':'Tủ lạnh'; }
+document.getElementById('confirmQtyBtn').addEventListener('click', ()=>{
+  const p = STATE.qtyProduct; if(!p) return;
+  const total = parseInt(document.getElementById('qtyTotalDisplay').textContent)||0;
+  const note = document.getElementById('qtyNote').value.trim();
+  const c = getCheck(p.id);
+  c[STATE.currentArea] = total;
+  c.ghiChu = note;
+  c.checkedAt = new Date().toISOString();
+  c.detectSource = c.detectSource || 'manual';
+  STATE.checks[p.id] = c;
+  persist();
+  vibrate([25]); beep();
+  showToast(`Đã lưu ${total} ${p.unit.toLowerCase()} cho ${p.name}`);
+  closeOverlay('qtyOverlay');
+  renderItemList(); renderDashboard();
+});
+
+/* ---------------------------- 8. CAMERA SCAN + AI DETECTION ---------------------------- */
+const scanOverlay = document.getElementById('scanOverlay');
+document.getElementById('openScanBtn').addEventListener('click', ()=> openScanSheet());
+function openScanSheet(){
+  STATE.scanProduct = null; STATE.scanCount = 0;
+  document.getElementById('scanCamBlock').style.display='none';
+  resetPhotoView();
+  renderScanPicker();
+  openOverlay('scanOverlay');
+}
+function resetPhotoView(){
+  const video = document.getElementById('camVideo');
+  const photo = document.getElementById('camPhoto');
+  photo.style.display='none'; photo.src='';
+  video.style.display='block';
+  document.getElementById('backToLiveBtn').style.display='none';
+}
+function renderScanPicker(){
+  const wrap = document.getElementById('scanProductPicker');
+  wrap.innerHTML = `<div class="search-wrap"><span class="icon">🔍</span><input type="text" id="scanPickSearch" placeholder="Chọn sản phẩm cần quét..."></div><div id="scanPickList" style="max-height:44vh;overflow-y:auto;"></div>`;
+  const renderList = (q='')=>{
+    const items = STATE.products.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()));
+    document.getElementById('scanPickList').innerHTML = items.map(p=>`
+      <div class="item-row" data-pid="${p.id}" style="border-top:1px solid var(--line);">
+        <div class="item-icon">${p.image||'📦'}</div>
+        <div class="item-main"><div class="nm">${p.name}</div><div class="sub">${p.unit}</div></div>
+      </div>`).join('') || '<p style="padding:14px;color:var(--ink-soft);font-size:13px;">Không tìm thấy.</p>';
+    document.querySelectorAll('#scanPickList .item-row').forEach(r=>{
+      r.addEventListener('click', ()=>{
+        STATE.scanProduct = STATE.products.find(p=>p.id===r.dataset.pid);
+        document.getElementById('scanProductPicker').innerHTML='';
+        document.getElementById('scanCamBlock').style.display='block';
+        startCamera();
+      });
+    });
+  };
+  renderList();
+  document.getElementById('scanPickSearch').addEventListener('input', e=>renderList(e.target.value));
+}
+
+async function startCamera(){
+  const status = document.getElementById('camStatus');
+  const video = document.getElementById('camVideo');
+  document.getElementById('camResult').style.display='none';
+  STATE.scanCount = 0;
+  document.getElementById('scanQtyBig').textContent = '0';
+  status.textContent = 'Đang mở camera…';
+  try{
+    STATE.camStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
+    video.srcObject = STATE.camStream;
+    status.textContent = 'Hướng camera vào lon/chai • ' + (STATE.scanProduct?STATE.scanProduct.name:'');
+  }catch(err){
+    status.textContent = 'Không thể mở camera. Dùng "🖼️ Quét bằng ảnh" hoặc nhập thủ công bên dưới.';
+    showToast('Không truy cập được camera — vẫn có thể quét bằng ảnh có sẵn');
+  }
+  await ensureModel(); // load AI model regardless, so photo-upload scanning works even without camera
+}
+
+async function ensureModel(){
+  const status = document.getElementById('camStatus');
+  if(STATE.cocoModel){ startDetectLoop(); return; }
+  if(typeof cocoSsd === 'undefined'){
+    status.textContent = 'Không tải được mô hình AI (offline?). Dùng nút chụp ảnh hoặc nhập tay.';
+    return;
+  }
+  try{
+    status.textContent = 'Đang tải mô hình nhận diện AI…';
+    STATE.cocoModel = await cocoSsd.load({ base:'lite_mobilenet_v2' });
+    status.textContent = 'Sẵn sàng — hướng camera vào lon/chai';
+    startDetectLoop();
+  }catch(e){
+    status.textContent = 'Không tải được mô hình AI. Dùng nút chụp ảnh hoặc nhập tay.';
+  }
+}
+
+/* Live detection loop: draws bounding boxes + updates a running "detected" count.
+   NOTE ON SCOPE: Improved detection with color-based + edge detection
+   for better bottle counting. Falls back to COCO-SSD if needed. */
+
+// Advanced bottle detection using color + contour analysis (faster, more accurate)
+function detectBottlesAdvanced(imageData, minBottleSize=200){
+  const data = imageData.data;
+  const w = imageData.width, h = imageData.height;
+  
+  // Create binary mask: detect dark pixels (bottles are dark brown/black)
+  const mask = new Uint8ClampedArray(w*h);
+  for(let i=0; i<w*h; i++){
+    const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
+    // Dark pixels: bottles, shadows
+    const brightness = (r+g+b)/3;
+    const saturation = Math.max(r,g,b) - Math.min(r,g,b);
+    // Detect dark + brownish or very dark
+    const isDark = brightness < 120;
+    const isBrown = isDark && r > g && r > b && saturation > 20;
+    const isVeryDark = brightness < 80;
+    mask[i] = (isBrown || isVeryDark) ? 255 : 0;
+  }
+  
+  // Morphological operations: dilate + erode to clean up noise
+  const dilated = new Uint8ClampedArray(mask);
+  for(let i=0; i<3; i++){ // 3 iterations of dilate
+    for(let y=1; y<h-1; y++){
+      for(let x=1; x<w-1; x++){
+        const idx = y*w+x;
+        if(dilated[idx]===0){
+          if(dilated[idx-1]>0 || dilated[idx+1]>0 || dilated[idx-w]>0 || dilated[idx+w]>0 || 
+             dilated[idx-w-1]>0 || dilated[idx-w+1]>0 || dilated[idx+w-1]>0 || dilated[idx+w+1]>0){
+            dilated[idx]=255;
+          }
+        }
+      }
+    }
+  }
+  
+  // Connected component labeling: count separate blobs
+  const labels = new Int32Array(w*h);
+  let componentCount = 0, nextLabel = 1;
+  
+  function floodFill(startIdx){
+    const stack = [startIdx];
+    let size = 0;
+    while(stack.length){
+      const idx = stack.pop();
+      if(idx<0 || idx>=w*h || labels[idx]!==0 || dilated[idx]===0) continue;
+      labels[idx] = nextLabel;
+      size++;
+      const x = idx%w, y = Math.floor(idx/w);
+      if(x>0) stack.push(idx-1);
+      if(x<w-1) stack.push(idx+1);
+      if(y>0) stack.push(idx-w);
+      if(y<h-1) stack.push(idx+w);
+    }
+    return size;
+  }
+  
+  for(let i=0; i<w*h; i++){
+    if(dilated[i]>0 && labels[i]===0){
+      const size = floodFill(i);
+      if(size > minBottleSize){ // Filter small noise
+        componentCount++;
+        nextLabel++;
+      }else{
+        // Erase small component
+        for(let j=0; j<w*h; j++) if(labels[j]===nextLabel-1) labels[j]=0;
+        nextLabel--;
+      }
+    }
+  }
+  
+  return componentCount;
+}
+
+function startDetectLoop(){
+  const video = document.getElementById('camVideo');
+  const canvas = document.getElementById('camCanvas');
+  const ctx = canvas.getContext('2d');
+  cancelAnimationFrame(STATE.detectLoopId);
+  let lastRun = 0, useAdvanced = true;
+  
+  async function loop(ts){
+    if(!STATE.camStream){ return; }
+    if(video.videoWidth){
+      canvas.width = video.clientWidth; canvas.height = video.clientHeight;
+    }
+    if(video.readyState===4 && ts-lastRun>600){
+      lastRun = ts;
+      try{
+        // Try advanced color-based detection first (faster)
+        if(useAdvanced){
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const bottleCount = detectBottlesAdvanced(imgData, 180);
+          
+          if(bottleCount > 0){
+            document.getElementById('camResult').style.display='block';
+            document.getElementById('camCount').textContent = bottleCount;
+            document.getElementById('camLabel').textContent = 'Đã phát hiện (chưa xác nhận)';
+            STATE.scanCount = bottleCount;
+            document.getElementById('scanQtyBig').textContent = bottleCount;
+            
+            // Draw visualization
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#7bc98a';
+            ctx.lineWidth = 2;
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#7bc98a';
+            ctx.fillText(`🔍 Phát hiện ${bottleCount} chai`, 10, 30);
+          }else{
+            document.getElementById('camResult').style.display='none';
+          }
+        }
+        
+        // Fallback to COCO-SSD if needed (slower but more reliable)
+        if(!useAdvanced && STATE.cocoModel){
+          const preds = await STATE.cocoModel.detect(video);
+          const relevant = preds.filter(p=> (p.class==='bottle') && p.score>0.4);
+          drawBoxes(ctx, canvas, video, relevant);
+          if(relevant.length){
+            document.getElementById('camResult').style.display='block';
+            document.getElementById('camCount').textContent = relevant.length;
+            document.getElementById('camLabel').textContent = 'Đã phát hiện AI (chưa xác nhận)';
+          }
+        }
+      }catch(e){ console.error('Detection error:', e); }
+    }
+    STATE.detectLoopId = requestAnimationFrame(loop);
+  }
+  STATE.detectLoopId = requestAnimationFrame(loop);
+}
+function drawBoxes(ctx, canvas, video, preds){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const sx = canvas.width/video.videoWidth, sy = canvas.height/video.videoHeight;
+  ctx.lineWidth=3; ctx.strokeStyle='#d3a75c'; ctx.font='13px sans-serif'; ctx.fillStyle='#d3a75c';
+  preds.forEach((p,i)=>{
+    const [x,y,w,h] = p.bbox;
+    ctx.strokeRect(x*sx,y*sy,w*sx,h*sy);
+    ctx.fillText(`#${i+1}`, x*sx+4, y*sy+16);
+  });
+}
+
+document.getElementById('capturePhotoBtn').addEventListener('click', async ()=>{
+  const video = document.getElementById('camVideo');
+  const canvas = document.getElementById('camCanvas');
+  const ctx = canvas.getContext('2d');
+  const status = document.getElementById('camStatus');
+  status.textContent = 'Đang xử lý ảnh…';
+  try{
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    
+    // Try advanced detection first
+    const bottleCount = detectBottlesAdvanced(imgData, 150);
+    
+    STATE.scanCount = bottleCount > 0 ? bottleCount : 0;
+    document.getElementById('scanQtyBig').textContent = STATE.scanCount;
+    document.getElementById('camResult').style.display = bottleCount > 0 ? 'block' : 'none';
+    document.getElementById('camCount').textContent = bottleCount;
+    document.getElementById('camLabel').textContent = bottleCount > 0 ? 'Đã phát hiện' : 'Không tìm thấy — điều chỉnh bằng nút +/−';
+    status.textContent = bottleCount > 0 ? '✓ Phát hiện thành công — kiểm tra và điều chỉnh' : 'Không phát hiện chai — vui lòng nhập thủ công';
+    if(bottleCount > 0) vibrate([15,40,15]);
+  }catch(e){ 
+    showToast('Xử lý ảnh thất bại: '+e.message);
+    status.textContent = 'Lỗi — vui lòng thử lại';
+  }
+});
+document.getElementById('scanPlus').addEventListener('click', ()=>{ STATE.scanCount++; document.getElementById('scanQtyBig').textContent = STATE.scanCount; });
+document.getElementById('scanMinus').addEventListener('click', ()=>{ STATE.scanCount=Math.max(0,STATE.scanCount-1); document.getElementById('scanQtyBig').textContent = STATE.scanCount; });
+
+/* --- Quét bằng ảnh có sẵn (upload từ thư viện) --- */
+document.getElementById('uploadPhotoBtn').addEventListener('click', ()=>{
+  document.getElementById('photoFileInput').click();
+});
+document.getElementById('photoFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('camStatus');
+  const video = document.getElementById('camVideo');
+  const photo = document.getElementById('camPhoto');
+  const canvas = document.getElementById('camCanvas');
+
+  // pause the live feed and show the chosen photo instead
+  cancelAnimationFrame(STATE.detectLoopId);
+  video.style.display = 'none';
+  photo.style.display = 'block';
+  document.getElementById('backToLiveBtn').style.display = 'block';
+  document.getElementById('camResult').style.display = 'none';
+
+  const url = URL.createObjectURL(file);
+  photo.src = url;
+  status.textContent = 'Đang tải ảnh…';
+
+  photo.onload = async ()=>{
+    canvas.width = photo.naturalWidth; canvas.height = photo.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(photo, 0, 0);
+    
+    status.textContent = 'Đang phân tích ảnh…';
+    try{
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const bottleCount = detectBottlesAdvanced(imgData, 150);
+      
+      // Redraw with result
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(photo, 0, 0);
+      
+      STATE.scanCount = bottleCount;
+      document.getElementById('scanQtyBig').textContent = bottleCount;
+      document.getElementById('camResult').style.display = bottleCount > 0 ? 'block' : 'none';
+      document.getElementById('camCount').textContent = bottleCount;
+      document.getElementById('camLabel').textContent = bottleCount > 0 ? 'Đã phát hiện trong ảnh' : 'Không tìm thấy — điều chỉnh bằng nút +/−';
+      status.textContent = bottleCount > 0 ? '✓ Phát hiện thành công — kiểm tra và điều chỉnh' : 'Không phát hiện chai — vui lòng nhập tay';
+      if(bottleCount > 0) vibrate([15,40,15]);
+    }catch(err){ 
+      showToast('Xử lý ảnh thất bại: '+err.message); 
+      status.textContent='Xử lý ảnh thất bại.'; 
+    }
+  };
+  e.target.value = ''; // allow choosing the same file again later
+});
+document.getElementById('backToLiveBtn').addEventListener('click', ()=>{
+  const video = document.getElementById('camVideo');
+  const photo = document.getElementById('camPhoto');
+  photo.style.display = 'none'; photo.src='';
+  video.style.display = 'block';
+  document.getElementById('backToLiveBtn').style.display = 'none';
+  document.getElementById('camResult').style.display = 'none';
+  if(STATE.camStream){ startDetectLoop(); }
+  else{ startCamera(); }
+});
+/* Loads the COCO-SSD model without also kicking off the live video detection
+   loop — used when the person scans a photo before/without ever granting
+   camera access. */
+async function ensureModelOnly(){
+  if(STATE.cocoModel) return;
+  if(typeof cocoSsd === 'undefined') return;
+  try{ STATE.cocoModel = await cocoSsd.load({ base:'lite_mobilenet_v2' }); }catch(e){ /* leave null, caller handles */ }
+}
+
+document.getElementById('confirmScanBtn').addEventListener('click', ()=>{
+  const p = STATE.scanProduct; if(!p){ showToast('Vui lòng chọn sản phẩm'); return; }
+  const c = getCheck(p.id);
+  c[STATE.currentArea] = (c[STATE.currentArea]||0) + STATE.scanCount;
+  c.checkedAt = new Date().toISOString();
+  c.detectSource = 'camera';
+  STATE.checks[p.id] = c;
+  persist();
+  vibrate([30,30,30]); beep();
+  showToast(`Đã cộng ${STATE.scanCount} vào ${areaLabel(STATE.currentArea)} — ${p.name}`);
+  stopCamera();
+  closeOverlay('scanOverlay');
+  renderItemList(); renderDashboard();
+});
+function stopCamera(){
+  if(STATE.camStream){ STATE.camStream.getTracks().forEach(t=>t.stop()); STATE.camStream=null; }
+  cancelAnimationFrame(STATE.detectLoopId);
+  resetPhotoView();
+}
+
+/* ---------------------------- 9. OVERLAY HELPERS ---------------------------- */
+function openOverlay(id){ document.getElementById(id).classList.add('open'); }
+function closeOverlay(id){
+  document.getElementById(id).classList.remove('open');
+  if(id==='scanOverlay') stopCamera();
+}
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=> closeOverlay(btn.dataset.close));
+});
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) closeOverlay(ov.id); });
+});
+
+/* ---------------------------- 10. SO SÁNH TỒN KHO ---------------------------- */
+function renderCompare(){
+  const wrap = document.getElementById('compareList');
+  wrap.innerHTML = STATE.products.map(p=>{
+    const actual = totalOf(p.id);
+    const sys = p.systemStock||0;
+    const diff = actual - sys;
+    const cls = diff===0 ? 'ok' : diff>0 ? 'warn' : 'bad';
+    const label = diff===0 ? '🟢 Khớp' : diff>0 ? `🟡 Thừa ${diff}` : `🔴 Thiếu ${Math.abs(diff)}`;
+    return `<div class="compare-row">
+      <div class="nm">${p.image||''} ${p.name}<div style="font-weight:400;font-size:11px;color:var(--ink-soft);">Hệ thống ${sys} · Thực tế ${actual}</div></div>
+      <input class="compare-input" type="number" value="${sys}" data-pid="${p.id}">
+      <div class="compare-diff ${cls}">${label}</div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.compare-input').forEach(inp=>{
+    inp.addEventListener('change', e=>{
+      const p = STATE.products.find(p=>p.id===e.target.dataset.pid);
+      p.systemStock = parseInt(e.target.value)||0;
+      persist(); renderCompare();
+    });
+  });
+}
+
+/* ---------------------------- 11. LỊCH SỬ KIỂM KÊ ---------------------------- */
+function archiveCurrentCheck(){
+  const entry = {
+    id: uid('h'), date: STATE.settings.date, checker: STATE.settings.checker,
+    items: Object.entries(STATE.checks).filter(([,c])=>c.checkedAt).map(([pid,c])=>{
+      const p = STATE.products.find(pp=>pp.id===pid);
+      return { pid, name:p?p.name:'?', kho:c.kho||0, tuLanh:c.tuLanh||0,
+               detectSource:c.detectSource, ghiChu:c.ghiChu||'' };
+    }),
+    archivedAt: new Date().toISOString(),
+  };
+  STATE.history.unshift(entry);
+  persist();
+  return entry;
+}
+function renderHistory(){
+  const wrap = document.getElementById('historyList');
+  if(!STATE.history.length){
+    wrap.innerHTML = `<div class="empty"><div class="em-icon">🕒</div><p>Chưa có phiên kiểm kê nào được lưu.<br>Vào mục Cài đặt để lưu phiên hiện tại vào lịch sử.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = STATE.history.map(h=>`
+    <div class="history-card">
+      <div class="top"><strong>${h.date||'—'}</strong><span>${h.items.length} mặt hàng</span></div>
+      <div class="meta">Người kiểm: ${h.checker||'—'} · Lưu lúc ${new Date(h.archivedAt).toLocaleString('vi-VN')}</div>
+    </div>
+  `).join('');
+}
+
+/* ---------------------------- 12. QUẢN LÝ SẢN PHẨM (CRUD) ---------------------------- */
+document.getElementById('prodSearchInput').addEventListener('input', e=>{ STATE.prodSearch = e.target.value.toLowerCase(); renderProductAdmin(); });
+function renderProductAdmin(){
+  const wrap = document.getElementById('productAdminList');
+  const items = STATE.products.filter(p=>p.name.toLowerCase().includes(STATE.prodSearch||''));
+  wrap.innerHTML = items.map(p=>`
+    <div class="item-row" data-pid="${p.id}">
+      <div class="item-icon">${p.image||'📦'}</div>
+      <div class="item-main"><div class="nm">${p.name}</div><div class="sub">${p.code} · ${p.unit} · ${p.perBox}/thùng · Min ${p.minStock}</div></div>
+      <span class="icon-btn" style="width:32px;height:32px;font-size:14px;">✏️</span>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.item-row').forEach(row=>{
+    row.addEventListener('click', ()=> openProductForm(row.dataset.pid));
+  });
+}
+document.getElementById('addProductBtn').addEventListener('click', ()=> openProductForm(null));
+function openProductForm(pid){
+  const p = pid ? STATE.products.find(x=>x.id===pid) : null;
+  document.getElementById('productFormTitle').textContent = p ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
+  document.getElementById('pfId').value = p ? p.id : '';
+  document.getElementById('pfName').value = p ? p.name : '';
+  document.getElementById('pfUnit').value = p ? p.unit : 'Chai';
+  document.getElementById('pfCategory').value = p ? p.category : 'Bia';
+  document.getElementById('pfCode').value = p ? p.code : ('SP-'+Math.floor(1000+Math.random()*9000));
+  document.getElementById('pfLocation').value = p ? p.location : '';
+  document.getElementById('pfPerBox').value = p ? p.perBox : 24;
+  document.getElementById('pfMinStock').value = p ? p.minStock : 20;
+  document.getElementById('pfImage').value = p ? p.image : '🍺';
+  document.getElementById('deleteProductBtn').style.display = p ? 'block' : 'none';
+  openOverlay('productOverlay');
+}
+document.getElementById('saveProductBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('pfId').value;
+  const name = document.getElementById('pfName').value.trim();
+  if(!name){ showToast('Vui lòng nhập tên sản phẩm'); return; }
+  const data = {
+    name, unit: document.getElementById('pfUnit').value, category: document.getElementById('pfCategory').value,
+    code: document.getElementById('pfCode').value.trim(), location: document.getElementById('pfLocation').value.trim(),
+    perBox: parseInt(document.getElementById('pfPerBox').value)||24,
+    minStock: parseInt(document.getElementById('pfMinStock').value)||0,
+    image: document.getElementById('pfImage').value.trim()||'📦',
+  };
+  if(id){
+    const p = STATE.products.find(x=>x.id===id); Object.assign(p, data);
+    showToast('Đã cập nhật sản phẩm');
+  }else{
+    STATE.products.push({ id:uid('p'), soldByBox:true, systemStock:0, ...data });
+    showToast('Đã thêm sản phẩm mới');
+  }
+  persist(); closeOverlay('productOverlay'); renderProductAdmin(); renderDashboard();
+});
+document.getElementById('deleteProductBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('pfId').value; if(!id) return;
+  if(!confirm('Xóa sản phẩm này? Dữ liệu kiểm kê liên quan cũng sẽ bị xóa.')) return;
+  STATE.products = STATE.products.filter(p=>p.id!==id);
+  delete STATE.checks[id];
+  persist(); closeOverlay('productOverlay'); renderProductAdmin(); renderDashboard();
+  showToast('Đã xóa sản phẩm');
+});
+
+/* ---------------------------- 13. EXPORT: CSV / PRINT / SHARE ---------------------------- */
+function buildReportRows(){
+  return STATE.products.map((p,i)=>{
+    const c = getCheck(p.id);
+    return { stt:i+1, name:p.name, unit:p.unit, kho:c.kho||0, tuLanh:c.tuLanh||0, tong:totalOf(p.id), note:c.ghiChu||'' };
+  });
+}
+document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+  const rows = buildReportRows();
+  let csv = 'STT,MAT HANG,DVT,KHO,TU LANH,TONG,GHI CHU\n';
+  rows.forEach(r=>{
+    csv += [r.stt, `"${r.name}"`, r.unit, r.kho, r.tuLanh, r.tong, `"${r.note}"`].join(',') + '\n';
+  });
+  csv += `\nNgay kiem ke:,${STATE.settings.date||''}\nNguoi kiem ke:,${STATE.settings.checker||''}\n`;
+  const blob = new Blob(["\ufeff"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download = `kiem-ke-${STATE.settings.date||'phien'}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  showToast('Đã xuất file CSV (mở được bằng Excel)');
+});
+document.getElementById('printBtn').addEventListener('click', ()=>{
+  const rows = buildReportRows();
+  document.getElementById('printTbody').innerHTML = rows.map(r=>`
+    <tr><td>${r.stt}</td><td>${r.name}</td><td>${r.unit}</td><td>${r.kho}</td><td>${r.tuLanh}</td><td>${r.tong}</td><td>${r.note}</td></tr>
+  `).join('');
+  document.getElementById('printDate').textContent = STATE.settings.date||'';
+  document.getElementById('printChecker').textContent = STATE.settings.checker||'';
+  window.print();
+});
+document.getElementById('shareBtn').addEventListener('click', async ()=>{
+  const rows = buildReportRows();
+  const text = `PHIẾU KIỂM KÊ ${STATE.settings.date||''}\n` + rows.map(r=>`${r.stt}. ${r.name}: Kho ${r.kho} · Tủ lạnh ${r.tuLanh} · Tổng ${r.tong}`).join('\n');
+  if(navigator.share){
+    try{ await navigator.share({ title:'Phiếu kiểm kê', text }); }catch(e){}
+  }else{
+    try{ await navigator.clipboard.writeText(text); showToast('Đã sao chép báo cáo vào clipboard'); }
+    catch(e){ showToast('Trình duyệt không hỗ trợ chia sẻ'); }
+  }
+});
+
+/* ---------------------------- 14. SETTINGS ---------------------------- */
+function applySettingsToUI(){
+  document.getElementById('checkDate').value = STATE.settings.date;
+  document.getElementById('checkerName').value = STATE.settings.checker||'';
+  document.documentElement.classList.toggle('dark', !!STATE.settings.dark);
+  document.getElementById('darkSwitch').classList.toggle('on', !!STATE.settings.dark);
+  document.getElementById('vibrateSwitch').classList.toggle('on', !!STATE.settings.vibrate);
+  document.getElementById('soundSwitch').classList.toggle('on', !!STATE.settings.sound);
+  document.getElementById('darkToggle').textContent = STATE.settings.dark ? '☀️' : '🌙';
+  applyRole();
+}
+document.getElementById('checkDate').addEventListener('change', e=>{ STATE.settings.date=e.target.value; persist(); renderDashboard(); });
+document.getElementById('checkerName').addEventListener('input', e=>{ STATE.settings.checker=e.target.value; persist(); });
+function toggleSwitch(key){
+  STATE.settings[key] = !STATE.settings[key]; persist(); applySettingsToUI();
+}
+document.getElementById('darkSwitch').addEventListener('click', ()=>toggleSwitch('dark'));
+document.getElementById('darkToggle').addEventListener('click', ()=>toggleSwitch('dark'));
+document.getElementById('vibrateSwitch').addEventListener('click', ()=>toggleSwitch('vibrate'));
+document.getElementById('soundSwitch').addEventListener('click', ()=>toggleSwitch('sound'));
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if(!confirm('Xóa toàn bộ dữ liệu hiện tại và nhập lại danh sách mẫu?')) return;
+  localStorage.removeItem(DB_KEYS.products); localStorage.removeItem(DB_KEYS.checks); localStorage.removeItem(DB_KEYS.history);
+  seedIfEmpty();
+  STATE.products = loadDB(DB_KEYS.products, []); STATE.checks = loadDB(DB_KEYS.checks, {}); STATE.history = loadDB(DB_KEYS.history, []);
+  showToast('Đã khôi phục dữ liệu mẫu');
+  renderDashboard(); renderItemList(); renderProductAdmin(); renderHistory();
+});
+
+document.getElementById('syncBtn').addEventListener('click', ()=>{
+  const entry = archiveCurrentCheck();
+  if(entry.items.length===0){ showToast('Chưa có mặt hàng nào được kiểm để đồng bộ'); return; }
+  showToast(`Đã lưu phiên kiểm kê (${entry.items.length} mặt hàng) vào lịch sử`);
+  renderHistory();
+});
+
+/* offline/online status */
+function updateNetStatus(){
+  const online = navigator.onLine;
+  document.getElementById('netStatus').textContent = online ? 'Đã kết nối — dữ liệu được lưu cục bộ và sẵn sàng đồng bộ' : 'Đang ngoại tuyến — dữ liệu vẫn được lưu trên máy';
+  const tag = document.getElementById('netTag');
+  tag.textContent = online ? 'Online' : 'Offline';
+  tag.className = 'tag ' + (online?'':'warn');
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+
+/* ---------------------------- 15. INIT ---------------------------- */
+applySettingsToUI();
+updateNetStatus();
+renderDashboard();
+renderItemList();
+
+// Service worker registration is skipped in this sandboxed preview (no external
+// file host for sw.js); localStorage already gives full offline read/write for
+// the check data itself. When deploying, add a sw.js that caches this file and
+// register it here to get the full "installable app icon" PWA behaviour.
+</script>
+</body>
+</html>

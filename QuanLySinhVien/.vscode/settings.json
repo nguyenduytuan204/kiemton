@@ -1,0 +1,5 @@
+{
+    "dotnet.defaultSolution": "QuanLySinhVien.csproj",
+    "omnisharp.projectLoadTimeout": 120,
+    "csharp.inlayHints.parameters.enabled": true
+}
