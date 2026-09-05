@@ -381,7 +381,7 @@ html.dark .btn-primary{background:var(--brass);color:#2a1d09;}
         <input type="text" id="checkerName" placeholder="Tên nhân viên">
       </div>
     </div>
-    <div class="area-pills" id="areaPills">
+    <div class="area-pills" id="areaPills" style="display:none;">
       <div class="area-pill active" data-area="kho">🏬 Kho</div>
       <div class="area-pill" data-area="tuLanh">❄️ Tủ lạnh</div>
     </div>
@@ -426,8 +426,8 @@ html.dark .btn-primary{background:var(--brass);color:#2a1d09;}
     </div>
 
     <div class="paper">
-      <div class="paper-head" style="grid-template-columns:24px 1fr 44px 44px 44px;">
-        <span>STT</span><span>MẶT HÀNG</span><span style="text-align:right;">KHO</span><span style="text-align:right;">T.LẠNH</span><span style="text-align:right;">TỔNG</span>
+      <div class="paper-head" style="grid-template-columns:24px 1fr 60px;">
+        <span>STT</span><span>MẶT HÀNG</span><span style="text-align:right;">SỐ LƯỢNG</span>
       </div>
       <div id="itemList"></div>
     </div>
@@ -891,8 +891,6 @@ function renderItemList(){
         <div class="sub">${p.unit}${c.ghiChu?' · '+c.ghiChu:''}</div>
       </div>
       <div class="item-nums">
-        <div class="num-pill">${c.kho||0}</div>
-        <div class="num-pill">${c.tuLanh||0}</div>
         <div class="num-pill total">${t}</div>
       </div>
       <div class="done-dot ${isChecked(p.id)?'':'pending'}"></div>
@@ -964,16 +962,16 @@ function updateQtyTotal(){
   const loose = parseInt(document.getElementById('looseCount').value)||0;
   const total = box*per + loose;
   document.getElementById('qtyTotalDisplay').textContent = total;
-  document.getElementById('qtyUnitDisplay').textContent = `${p.unit.toUpperCase()} — cộng vào khu vực "${areaLabel(STATE.currentArea)}"`;
+  document.getElementById('qtyUnitDisplay').textContent = `${p.unit.toUpperCase()} — tổng cộng`;
   document.getElementById('qtyFormulaHint').textContent = `${box} × ${per} + ${loose} = ${total}`;
 }
-function areaLabel(a){ return a==='kho'?'Kho':'Tủ lạnh'; }
 document.getElementById('confirmQtyBtn').addEventListener('click', ()=>{
   const p = STATE.qtyProduct; if(!p) return;
   const total = parseInt(document.getElementById('qtyTotalDisplay').textContent)||0;
   const note = document.getElementById('qtyNote').value.trim();
   const c = getCheck(p.id);
-  c[STATE.currentArea] = total;
+  c.kho = total;
+  c.tuLanh = 0;
   c.ghiChu = note;
   c.checkedAt = new Date().toISOString();
   c.detectSource = c.detectSource || 'manual';
@@ -1539,14 +1537,14 @@ document.getElementById('deleteProductBtn').addEventListener('click', ()=>{
 function buildReportRows(){
   return STATE.products.map((p,i)=>{
     const c = getCheck(p.id);
-    return { stt:i+1, name:p.name, unit:p.unit, kho:c.kho||0, tuLanh:c.tuLanh||0, tong:totalOf(p.id), note:c.ghiChu||'' };
+    return { stt:i+1, name:p.name, unit:p.unit, qty:totalOf(p.id), note:c.ghiChu||'' };
   });
 }
 document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
   const rows = buildReportRows();
-  let csv = 'STT,MAT HANG,DVT,KHO,TU LANH,TONG,GHI CHU\n';
+  let csv = 'STT,MAT HANG,DVT,SO LUONG,GHI CHU\n';
   rows.forEach(r=>{
-    csv += [r.stt, `"${r.name}"`, r.unit, r.kho, r.tuLanh, r.tong, `"${r.note}"`].join(',') + '\n';
+    csv += [r.stt, `"${r.name}"`, r.unit, r.qty, `"${r.note}"`].join(',') + '\n';
   });
   csv += `\nNgay kiem ke:,${STATE.settings.date||''}\nNguoi kiem ke:,${STATE.settings.checker||''}\n`;
   const blob = new Blob(["\ufeff"+csv], {type:'text/csv;charset=utf-8;'});
@@ -1558,7 +1556,7 @@ document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
 document.getElementById('printBtn').addEventListener('click', ()=>{
   const rows = buildReportRows();
   document.getElementById('printTbody').innerHTML = rows.map(r=>`
-    <tr><td>${r.stt}</td><td>${r.name}</td><td>${r.unit}</td><td>${r.kho}</td><td>${r.tuLanh}</td><td>${r.tong}</td><td>${r.note}</td></tr>
+    <tr><td>${r.stt}</td><td>${r.name}</td><td>${r.unit}</td><td>${r.qty}</td><td>${r.note}</td></tr>
   `).join('');
   document.getElementById('printDate').textContent = STATE.settings.date||'';
   document.getElementById('printChecker').textContent = STATE.settings.checker||'';
@@ -1566,7 +1564,7 @@ document.getElementById('printBtn').addEventListener('click', ()=>{
 });
 document.getElementById('shareBtn').addEventListener('click', async ()=>{
   const rows = buildReportRows();
-  const text = `PHIẾU KIỂM KÊ ${STATE.settings.date||''}\n` + rows.map(r=>`${r.stt}. ${r.name}: Kho ${r.kho} · Tủ lạnh ${r.tuLanh} · Tổng ${r.tong}`).join('\n');
+  const text = `PHIẾU KIỂM KÊ ${STATE.settings.date||''}\n` + rows.map(r=>`${r.stt}. ${r.name}: ${r.qty} ${r.unit.toLowerCase()}${r.note?', '+r.note:''}`).join('\n');
   if(navigator.share){
     try{ await navigator.share({ title:'Phiếu kiểm kê', text }); }catch(e){}
   }else{
