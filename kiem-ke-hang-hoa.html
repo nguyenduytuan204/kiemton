@@ -1354,20 +1354,27 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
   status.textContent = 'Đang tải ảnh…';
 
   photo.onload = async ()=>{
-    canvas.width = photo.naturalWidth; canvas.height = photo.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(photo, 0, 0);
-    
-    status.textContent = 'Đang phân tích ảnh…';
     try{
+      // Ensure canvas is same size as actual image
+      canvas.width = photo.naturalWidth; 
+      canvas.height = photo.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
+      
+      status.textContent = 'Đang phân tích ảnh…';
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const bottles = detectBottlesAdvanced(imgData, 50);
+      const bottles = detectBottlesAdvanced(imgData, 40);
       const bottleCount = bottles.length;
+      
+      console.log('Upload image detection:', bottleCount, 'bottles found in', canvas.width, 'x', canvas.height);
       
       // Redraw with boxes
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(photo, 0, 0);
-      drawDetectedBottles(ctx, bottles, photo.naturalWidth, photo.naturalHeight, canvas.width, canvas.height);
+      ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
+      
+      if(bottleCount > 0){
+        drawDetectedBottles(ctx, bottles, canvas.width, canvas.height, canvas.width, canvas.height);
+      }
       
       STATE.scanCount = bottleCount;
       document.getElementById('scanQtyBig').textContent = bottleCount;
@@ -1377,8 +1384,9 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
       status.textContent = bottleCount > 0 ? '✓ Phát hiện thành công — kiểm tra và điều chỉnh' : 'Không phát hiện chai — vui lòng nhập tay';
       if(bottleCount > 0) vibrate([15,40,15]);
     }catch(err){ 
+      console.error('Upload image processing error:', err);
       showToast('Xử lý ảnh thất bại: '+err.message); 
-      status.textContent='Xử lý ảnh thất bại.'; 
+      status.textContent='Xử lý ảnh thất bại: '+err.message; 
     }
   };
   e.target.value = ''; // allow choosing the same file again later
